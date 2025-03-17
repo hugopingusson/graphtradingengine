@@ -5,16 +5,15 @@
 #ifndef CLASS_LOGGER_H
 #define CLASS_LOGGER_H
 #include <string>
-#include <boost/log/trivial.hpp>
-#include <boost/log/utility/setup.hpp>
-#include <boost/log/sinks.hpp>
-#include <boost/log/sinks/text_file_backend.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/filesystem.hpp>
 #include <fmt/core.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
 
 using namespace std;
 using namespace boost::filesystem;
+
+
 
 class Logger {
     public:
@@ -30,6 +29,7 @@ class Logger {
     protected:
     string log_root;
     string log_folder;
+    std::shared_ptr<spdlog::logger> spdlogger;
 
 
 };
