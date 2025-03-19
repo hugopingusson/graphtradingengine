@@ -7,16 +7,6 @@ find_package(Arrow REQUIRED)
 find_package(Parquet REQUIRED)
 find_package(Boost 1.71 REQUIRED COMPONENTS system filesystem thread)
 
-if(Boost_LOG_FOUND)
-    message(STATUS "Boost Log is installed")
-else()
-    message(STATUS "Boost Log is NOT installed")
-endif()
-
-if (Boost_FOUND)
-    message(STATUS "Boost found: ${Boost_VERSION}")
-    message(STATUS "Boost.Thread version: ${Boost_THREAD_VERSION}")
-endif()
 
 include_directories(${Boost_INCLUDE_DIRS})
 
