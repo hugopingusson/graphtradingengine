@@ -13,16 +13,22 @@ include_directories(${Boost_INCLUDE_DIRS})
 
 
 add_executable(GraphTradingEngine main.cpp
-        DataReader/class_DataReader.h
-        DataReader/class_DataReader.cpp
-        Helper/class_FutureHelper.cpp
-        Helper/class_FutureHelper.h
-        Helper/class_DateHelper.cpp
-        Helper/class_DateHelper.h
-        Core/Node/class_Node.cpp
-        Core/Node/class_Node.h
-        Logger/class_Logger.cpp
-        Logger/class_Logger.h
+        DataReader/DataReader.h
+        DataReader/DataReader.cpp
+        Helper/FutureHelper.cpp
+        Helper/FutureHelper.h
+        Helper/DateHelper.cpp
+        Helper/DateHelper.h
+        Core/Node/Node.cpp
+        Core/Node/Node.h
+        Logger/Logger.cpp
+        Logger/Logger.h
+        Core/Graph/MarketEvent.cpp
+        Core/Graph/MarketEvent.h
+        Core/Node/Market.cpp
+        Core/Node/Market.h
+        Core/Graph/Graph.cpp
+        Core/Graph/Graph.h
 )
 
 

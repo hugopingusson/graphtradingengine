@@ -2,7 +2,7 @@
 // Created by hugo on 15/03/25.
 //
 
-#include "class_FutureHelper.h"
+#include "FutureHelper.h"
 
 struct FutureInfo{
     std::map<int,std::string> months_dict = {

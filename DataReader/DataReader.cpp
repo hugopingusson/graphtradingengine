@@ -3,7 +3,7 @@
 //
 
 
-#include "class_DataReader.h"
+#include "DataReader.h"
 
 DataReader::DataReader():database_root("/media/hugo/T7/market_data/databento/mbp10"){};
 DataReader::DataReader(const string& database_root):database_root(database_root){};

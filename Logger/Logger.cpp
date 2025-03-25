@@ -2,7 +2,7 @@
 // Created by hugo on 16/03/25.
 //
 
-#include "class_Logger.h"
+#include "Logger.h"
 
 Logger::Logger():log_root("/home/hugo/gte_logs") {
     auto const now = std::chrono::system_clock::now();

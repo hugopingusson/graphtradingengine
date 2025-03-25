@@ -1,10 +1,10 @@
 #include <iostream>
 
-#include "Core/Node/class_Node.h"
-#include "DataReader/class_DataReader.h"
-#include "Helper/class_FutureHelper.h"
-#include "Logger/class_Logger.h"
-#include "Core/Node/class_Node.h"
+#include "Core/Node/Node.h"
+#include "DataReader/DataReader.h"
+#include "Helper/FutureHelper.h"
+#include "Logger/Logger.h"
+#include "Core/Node/Node.h"
 
 // TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
@@ -15,7 +15,6 @@ int main() {
 
     double test = 1;
 
-    std::to_string(&test);
 
 
 
