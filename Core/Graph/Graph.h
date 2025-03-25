@@ -22,7 +22,7 @@ class Graph {
     // int64_t get_feed_handler_graph_latency();
 
     void add_source(Node* source_node);
-    void make_subscription(Node*)
+    void make_subscription(Node*);
 
 
     protected:
