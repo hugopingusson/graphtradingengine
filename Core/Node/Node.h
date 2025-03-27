@@ -19,6 +19,7 @@ class Node {
 
 
     Node();
+    explicit Node(const string& name);
     explicit Node(const int& node_id,const string& name,Logger* main_logger);
 
     virtual void update()=0;
@@ -28,6 +29,10 @@ class Node {
     [[nodiscard]] int64_t get_last_reception_timestamp() const;
     [[nodiscard]] int64_t get_last_exchange_timestamp() const;
 
+    void set_name(const string& name);
+
+    void set_logger(Logger* main_logger);
+    void set_node_id(const int& node_id);
 
     protected:
     int node_id;
@@ -66,9 +71,14 @@ class ValueNode: public Node {
 class MonoValueNode: public ValueNode {
     public:
     ~MonoValueNode() override = default;
+    MonoValueNode();
+    MonoValueNode(Node* parent);
     explicit MonoValueNode(const int& node_id,const string& name,Node* parent,Logger* logger);
     virtual double compute()=0;
+
+
     void update() override;
+    Node* get_parent() const;
 
     protected:
     Node* parent;

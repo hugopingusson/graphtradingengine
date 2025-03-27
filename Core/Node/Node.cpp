@@ -7,12 +7,23 @@ Node::Node() {
     last_reception_timestamp=int64_t();
     valid=false;
     name=string();
-    main_logger=new Logger();
+    main_logger=nullptr;
     node_id=int();
 }
 
+Node::Node(const string& name) {
+    sequence_number = int64_t();
+    last_exchange_timestamp=int64_t();
+    last_reception_timestamp=int64_t();
+    valid=false;
+    this->name=name;
+    main_logger=nullptr;
+    node_id=int();
+}
+
+
 Node::Node(const int& node_id,const string &name,Logger* logger) {
-    this->node_id=node_id
+    this->node_id=node_id;
     sequence_number = int64_t();
     last_exchange_timestamp=int64_t();
     last_reception_timestamp=int64_t();
@@ -37,6 +48,17 @@ int64_t Node::get_last_reception_timestamp() const {
     return this->last_reception_timestamp;
 }
 
+void Node::set_name(const string& name) {
+    this->name=name;
+}
+
+void Node::set_logger(Logger* main_logger) {
+    this->main_logger=main_logger;
+}
+
+void Node::set_node_id(const int& node_id) {
+    this->node_id=node_id;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -50,8 +72,20 @@ double ValueNode::get_last_value() const {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+MonoValueNode::MonoValueNode():ValueNode() {
+    parent=nullptr;
+};
+
+MonoValueNode::MonoValueNode(Node* parent):ValueNode() {
+    this->parent=parent;
+}
 
 MonoValueNode::MonoValueNode(const int& node_id,const string &name,Node* parent,Logger* logger):ValueNode(node_id,name,logger),parent(parent) {}
+
+Node *MonoValueNode::get_parent() const {
+    return this->parent;
+}
+
 
 void MonoValueNode::update() {
     if ((*this->parent).is_valid()) {
