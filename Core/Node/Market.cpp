@@ -4,6 +4,7 @@
 
 #include "Market.h"
 
+#include <iostream>
 
 
 Market::Market():Node(),instrument(string()),exchange(string()),depth(int()),tick_value(double()){};
@@ -35,7 +36,7 @@ double Market::spread() const {
 }
 
 double Market::imbalance() const {
-    return (this->ask_size(0)-this->bid_size(0))/(this->ask_size(0)-this->bid_size()(0));
+    return (this->ask_size(0)-this->bid_size(0))/(this->ask_size(0)-this->bid_size(0));
 }
 
 double Market::bary() const {
@@ -94,6 +95,8 @@ double Market::cumulative_bid_amount(const int& i) const {
 
 
 
-
+void Market::update() {
+    cout<<"Market::update"<<endl;
+}
 
 

@@ -20,6 +20,7 @@ class Graph {
     int64_t get_last_graph_latency() const;
     // int64_t get_last_engine_graph_latency();
     // int64_t get_feed_handler_graph_latency();
+    Logger get_logger();
 
     bool empty() const;
     int get_node_id(Node* node) const;
@@ -33,6 +34,7 @@ class Graph {
 
     void resolve_update_path();
 
+    vector<vector<int>> link(int target_node_id);
 
     protected:
     int64_t sequence_number;
@@ -42,18 +44,12 @@ class Graph {
     int64_t last_out_graph_timestamp;
     int max_id;
 
-    Logger main_logger;
+    Logger logger;
 
     map<int,vector<int>> adjacency_map;
     map<int,Node*> node_container;
     map<int,Node*> source_container;
     map<int,vector<int>> update_path;
-
-
-
-
-
-
 };
 
 

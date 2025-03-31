@@ -5,6 +5,9 @@
 #include "Helper/FutureHelper.h"
 #include "Logger/Logger.h"
 #include "Core/Node/Node.h"
+#include "Core/Node/Market.h"
+#include "Core/Graph/Graph.h"
+
 
 // TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
@@ -13,7 +16,12 @@ int main() {
     // DataReader data_reader = DataReader();
     // auto test = data_reader.get_cme_market_data_table("EURUSD","2024-04-29");
 
-    double test = 1;
+    Graph graph=Graph();
+    Market market=Market("EURUSD","cme",5,1e-5);
+
+    graph.add_source(&market);
+
+
 
 
 

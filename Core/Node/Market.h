@@ -12,10 +12,12 @@ using namespace fmt;
 #include <map>
 #include <vector>
 
-class Market:Node {
+class Market:public Node {
     public:
     Market();
     Market(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
+
+    void update() override;
 
     double ask_price(const int& i) const;
     double ask_size(const int& i) const;

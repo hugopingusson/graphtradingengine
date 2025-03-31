@@ -18,7 +18,7 @@ using namespace boost::filesystem;
 class Logger {
     public:
     Logger();
-    // Logger(const std::string& log_folder);
+    Logger(const string& logger_name,const string& log_location);
 
 
     void log_info(const string& msg);
@@ -27,7 +27,7 @@ class Logger {
 
 
     protected:
-    string log_root;
+    string log_location;
     string log_folder;
     std::shared_ptr<spdlog::logger> spdlogger;
 

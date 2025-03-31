@@ -3,8 +3,15 @@
 //
 
 #include "Graph.h"
+// Graph::Graph():sequence_number(int64_t()),last_exchange_timestamp(int64_t()),last_reception_timestamp(int64_t()),last_in_graph_timestamp(int64_t()),last_out_graph_timestamp(int64_t()),
+//     adjacency_map(map<int,vector<int>>()),node_container(map<int,Node*>()),source_container(map<int,Node*>()){
+//     logger=Logger("MainLogger","/home/hugo/gte_logs");
+// };
 
-Graph::Graph() {
+
+
+Graph::Graph(){
+    logger=Logger("MainLogger","/home/hugo/gte_logs");
     sequence_number=int64_t();
     last_exchange_timestamp=int64_t();
     last_reception_timestamp=int64_t();
@@ -13,8 +20,16 @@ Graph::Graph() {
     adjacency_map=map<int,vector<int>>();
     node_container=map<int,Node*>();
     source_container=map<int,Node*>();
-    main_logger=Logger();
+    max_id=0;
+
+    logger.log_info("Created Graph");
+
 };
+
+Logger Graph::get_logger() {
+    return this->logger;
+}
+
 
 int64_t Graph::get_last_graph_latency() const {
     return last_out_graph_timestamp - last_in_graph_timestamp;
@@ -44,7 +59,7 @@ void Graph::checkin(Node* node) {
         this->max_id+=1;
     }
     node->set_node_id(this->max_id);
-    node->set_logger(&this->main_logger);
+    node->set_logger(&this->logger);
 }
 
 
@@ -62,8 +77,8 @@ void Graph::add_source(Node* source_node) {
 void Graph::add_edge(Node *publisher, Node *subscriber) {
     int publisher_id = this->get_node_id(publisher);
     if (publisher_id==-1) {
-        string error_message=fmt::format("Error in add_egde, could not find publisher node in the Graph: publisher={} , subcriber={}", publisher->get_name(),subscriber->get_name());
-        this->main_logger.log_error(error_message);
+        string error_message=fmt::format("Error in add_edge, could not find publisher node in the Graph: publisher={} , subcriber={}", publisher->get_name(),subscriber->get_name());
+        this->logger.log_error(error_message);
         throw std::logic_error(error_message);
     }
 
@@ -91,6 +106,23 @@ void Graph::resolve_update_path() {
 }
 
 
+vector<vector<int>> Graph::link(int target_node_id) {
+    vector<vector<int>> return_vector;
+    if (this->adjacency_map[target_node_id].empty()) {
+        return_vector.push_back(vector<int>({target_node_id}));
+    }
+    else {
+        for (auto it: this->adjacency_map[target_node_id]) {
+            for (auto incoming_vector :this->link(it)){
+                incoming_vector.insert(incoming_vector.begin(),target_node_id);
+                return_vector.push_back(incoming_vector);
+            }
+        }
+    }
+    return return_vector;
+
+
+}
 
 
 
