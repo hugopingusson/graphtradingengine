@@ -25,6 +25,7 @@ class Node {
     virtual void update()=0;
 
     [[nodiscard]] string get_name() const;
+    [[nodiscard]] int get_node_id() const;
     [[nodiscard]] bool is_valid() const;
     [[nodiscard]] int64_t get_last_reception_timestamp() const;
     [[nodiscard]] int64_t get_last_exchange_timestamp() const;
@@ -50,10 +51,12 @@ class Node {
 class ValueNode: public Node {
     public:
     ~ValueNode() override = default;
-
     ValueNode();
     explicit ValueNode(const int& node_id,const string& name,Logger* logger);
 
+
+
+    virtual double compute()=0;
     void update() override =0;
 
     // ValidCollector get_valid_collector() const;
@@ -108,7 +111,7 @@ class MonoValueNode: public ValueNode {
 //     virtual double compute(const Node& node)=0;
 //     void update(const Node& node);
 //
-//     protected:
+//     protected:ll
 //     ValidCollector valid_collector;
 // };
 

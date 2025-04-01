@@ -10,6 +10,27 @@
 Market::Market():Node(),instrument(string()),exchange(string()),depth(int()),tick_value(double()){};
 Market::Market(const string &instrument, const string &exchange, const int &depth, const double &tick_value):Node(fmt::format("Market(instrument={},exchange={})",instrument,exchange)),instrument(instrument),exchange(exchange),depth(depth),tick_value(tick_value) {}
 
+map<string,vector<double>> Market::get_data() {
+    return this->data;
+}
+
+string Market::get_instrument() {
+    return this->instrument;
+}
+
+string Market::get_exchange() {
+    return this->exchange;
+}
+
+double Market::get_tick_value() {
+    return this->tick_value;
+}
+
+int Market::get_depth() {
+    return this->depth;
+}
+
+
 double Market::ask_size(const int& i) const {
     return data.at("ask_size").at(i);
 }

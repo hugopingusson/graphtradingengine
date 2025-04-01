@@ -36,6 +36,10 @@ string Node::get_name() const {
     return this->name;
 }
 
+int Node::get_node_id() const {
+    return this->node_id;
+}
+
 bool Node::is_valid() const {
     return this->valid;
 }

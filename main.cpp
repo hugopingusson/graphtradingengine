@@ -7,6 +7,8 @@
 #include "Core/Node/Node.h"
 #include "Core/Node/Market.h"
 #include "Core/Graph/Graph.h"
+#include "Core/Node/Signals/MathNode.h"
+#include "Core/Node/Signals/OrberBook.h"
 
 
 // TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
@@ -18,13 +20,19 @@ int main() {
 
     Graph graph=Graph();
     Market market=Market("EURUSD","cme",5,1e-5);
+    Mid mid = Mid(&market);
+    Bary bary=Bary(&market);
+
+    Skew skew=Skew(&bary,&mid);
 
     graph.add_source(&market);
+    graph.add_edge(&market,&mid);
+    graph.add_edge(&market,&bary);
 
+    graph.add_edge(&bary,&skew);
+    graph.add_edge(&mid,&skew);
 
-
-
-
+    graph.resolve_update_path();
 
     // Logger logger = Logger();
     // logger.log_error("Ceci est une error");

@@ -17,6 +17,12 @@ class Market:public Node {
     Market();
     Market(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
 
+    map<string,vector<double>> get_data();
+    string get_instrument();
+    string get_exchange();
+    int get_depth();
+    double get_tick_value();
+
     void update() override;
 
     double ask_price(const int& i) const;

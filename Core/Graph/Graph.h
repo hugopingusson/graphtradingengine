@@ -27,16 +27,19 @@ class Graph {
 
 
     void checkin(Node* node);
+    bool checked_in(Node* node);
+
     void add_source(Node* source_node);
     void add_edge(Node* publisher,Node* subscriber);
-
-    void add_mono_value_node(MonoValueNode* subscriber);
+    void resolve_output_nodes();
+    // void add_mono_value_node(Node* subscriber);
 
     void resolve_update_path();
 
     vector<vector<int>> link(int target_node_id);
 
     protected:
+
     int64_t sequence_number;
     int64_t last_reception_timestamp;
     int64_t last_exchange_timestamp;
@@ -49,6 +52,7 @@ class Graph {
     map<int,vector<int>> adjacency_map;
     map<int,Node*> node_container;
     map<int,Node*> source_container;
+    map<int,Node*> output_container;
     map<int,vector<int>> update_path;
 };
 

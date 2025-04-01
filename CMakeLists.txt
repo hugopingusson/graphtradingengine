@@ -29,6 +29,10 @@ add_executable(GraphTradingEngine main.cpp
         Core/Node/Market.h
         Core/Graph/Graph.cpp
         Core/Graph/Graph.h
+        Core/Node/Signals/OrberBook.cpp
+        Core/Node/Signals/OrberBook.h
+        Core/Node/Signals/MathNode.cpp
+        Core/Node/Signals/MathNode.h
 )
 
 
