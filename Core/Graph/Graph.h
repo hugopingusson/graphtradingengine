@@ -18,13 +18,12 @@ class Graph {
 
 
     int64_t get_last_graph_latency() const;
-    // int64_t get_last_engine_graph_latency();
-    // int64_t get_feed_handler_graph_latency();
     Logger get_logger();
 
     bool empty() const;
     int get_node_id(Node* node) const;
 
+    ///////////////////////////////////// GRAPH CONSTRUCTION LOGIC //////////////////////////
 
     void checkin(Node* node);
     bool checked_in(Node* node);
@@ -32,11 +31,13 @@ class Graph {
     void add_source(Node* source_node);
     void add_edge(Node* publisher,Node* subscriber);
     void resolve_output_nodes();
-    // void add_mono_value_node(Node* subscriber);
-
     void resolve_update_path();
-
     vector<vector<int>> link(int target_node_id);
+
+    ///////////////////////////////////// GRAPH RUNNING LOGIC //////////////////////////
+
+    void update(const int& source_id);
+
 
     protected:
 

@@ -23,8 +23,8 @@ add_executable(GraphTradingEngine main.cpp
         Core/Node/Node.h
         Logger/Logger.cpp
         Logger/Logger.h
-        Core/Graph/MarketEvent.cpp
-        Core/Graph/MarketEvent.h
+        Core/Graph/Event.cpp
+        Core/Graph/Event.h
         Core/Node/Market.cpp
         Core/Node/Market.h
         Core/Graph/Graph.cpp
@@ -33,6 +33,8 @@ add_executable(GraphTradingEngine main.cpp
         Core/Node/Signals/OrberBook.h
         Core/Node/Signals/MathNode.cpp
         Core/Node/Signals/MathNode.h
+        Core/Event/Event.cpp
+        Core/Event/Event.h
 )
 
 

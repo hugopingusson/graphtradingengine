@@ -20,17 +20,28 @@ int main() {
 
     Graph graph=Graph();
     Market market=Market("EURUSD","cme",5,1e-5);
+    Market market_jpy=Market("USDJPY","cme",5,1e-5);
     Mid mid = Mid(&market);
     Bary bary=Bary(&market);
 
+    Bary bary_jpy=Bary(&market_jpy);
+
     Skew skew=Skew(&bary,&mid);
 
+    Skew skew_jpy=Skew(&bary_jpy,&skew);
+
     graph.add_source(&market);
+    graph.add_source(&market_jpy);
+
     graph.add_edge(&market,&mid);
     graph.add_edge(&market,&bary);
+    graph.add_edge(&market_jpy,&bary_jpy);
 
     graph.add_edge(&bary,&skew);
     graph.add_edge(&mid,&skew);
+
+    graph.add_edge(&bary_jpy,&skew_jpy);
+    graph.add_edge(&skew,&skew_jpy);
 
     graph.resolve_update_path();
 

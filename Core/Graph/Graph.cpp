@@ -38,10 +38,10 @@ int64_t Graph::get_last_graph_latency() const {
     return last_out_graph_timestamp - last_in_graph_timestamp;
 }
 
+
 bool Graph::empty() const {
     return this->node_container.empty();
 }
-
 
 
 int Graph::get_node_id(Node* node) const{
@@ -52,6 +52,8 @@ int Graph::get_node_id(Node* node) const{
     }
     return -1;
 }
+
+///////////////////////////////////// GRAPH CONSTRUCTION LOGIC //////////////////////////
 
 bool Graph::checked_in(Node* node) {
     bool checked_in=false;
@@ -112,31 +114,6 @@ void Graph::resolve_output_nodes() {
     }
 }
 
-// void Graph::add_mono_value_node(MonoValueNode* subscriber) {
-//     this->add_edge(subscriber->get_parent(),subscriber);
-// }
-
-void Graph::resolve_update_path() {
-    this->resolve_output_nodes();
-
-    vector<vector<int>> all_update_path;
-    for (auto &it: this->source_container) {
-        for (auto &path : this->link(it.first)){
-            all_update_path.push_back(path);
-        }
-    }
-
-    for (auto &it: this->output_container) {
-        vector<vector<int>> output_element;
-        for (auto &path: all_update_path) {
-        }
-    }
-
-   cout << all_update_path.size() << endl;
-
-}
-
-
 vector<vector<int>> Graph::link(int target_node_id) {
     vector<vector<int>> return_vector;
     if (this->adjacency_map[target_node_id].empty()) {
@@ -155,12 +132,69 @@ vector<vector<int>> Graph::link(int target_node_id) {
 
 }
 
+void Graph::resolve_update_path() {
+    this->resolve_output_nodes();
+
+    vector<vector<int>> all_update_path;
+    for (auto &it: this->source_container) {
+        for (auto &path : this->link(it.first)){
+            all_update_path.push_back(path);
+        }
+    }
+
+    for (auto &it: this->source_container) {
+
+        vector<vector<int>> sub_path;
+        for (auto &path: all_update_path) {
+            if (path.front()==it.first) {
+                path.erase(path.begin());
+                sub_path.push_back(path);
+            }
+        }
+
+        while (!sub_path.empty()) {
+            vector<int> element_to_erase=vector<int>();
+
+            for (int i=0; i<sub_path.size(); i++) {
+                int new_element = sub_path[i][ sub_path[i].size()-1];
+                sub_path[i].erase( sub_path[i].end()-1);
+                auto p =std::find(this->update_path[it.first].begin(),this->update_path[it.first].end(),new_element);
+                if (p==this->update_path[it.first].end()) {
+                    this->update_path[it.first].insert(this->update_path[it.first].begin(),new_element);
+                }
+
+                if ( sub_path[i].empty()) {
+                    element_to_erase.push_back(i);
+                }
+
+            }
+
+            for (int i:element_to_erase) {
+                sub_path.erase(sub_path.begin()+i);
+            }
+
+
+        }
+
+
+    }
+
+
+}
 
 
 
 
 
 
+///////////////////////////////////// GRAPH RUNNING LOGIC //////////////////////////
+
+
+void Graph::update(const int& source_id) {
+    for (int& node_id:this->update_path[source_id]) {
+        this->node_container[node_id]->update();
+    }
+}
 
 
 
