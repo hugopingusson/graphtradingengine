@@ -2,13 +2,13 @@
 // Created by hugo on 01/04/25.
 //
 
-#include "MathNode.h"
+#include "MathSignal.h"
 #include <fmt/format.h>
 
 
 Skew::Skew():parent_1(nullptr),parent_2(nullptr) {}
 
-Skew::Skew(ValueNode *parent1, ValueNode *parent2) {
+Skew::Skew(Signal *parent1, Signal *parent2) {
     this->parent_1 = parent1;
     this->parent_2 = parent2;
 
@@ -18,7 +18,7 @@ Skew::Skew(ValueNode *parent1, ValueNode *parent2) {
 
 
 double Skew::compute() {
-    return (this->parent_1->get_last_value()-this->parent_2->get_last_value())/this->parent_2->get_last_value();
+    return (this->parent_1->get_value()-this->parent_2->get_value())/this->parent_2->get_value();
 }
 
 
@@ -30,7 +30,7 @@ void Skew::update() {
         }
         else {
             this->valid=true;
-            this->last_value=new_value;
+            this->value=new_value;
         }
     }
     else {

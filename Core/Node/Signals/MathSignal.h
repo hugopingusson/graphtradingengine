@@ -4,18 +4,19 @@
 
 #ifndef MATHNODE_H
 #define MATHNODE_H
-#include "../Node.h"
+#include "../Base/Node.h"
 
-class Skew:public ValueNode{
+class Skew:public Signal{
     public:
     Skew();
-    Skew(ValueNode* parent1,ValueNode* parent2);
+    ~Skew() override = default;
+    Skew(Signal* parent1,Signal* parent2);
     double compute() override;
     void update() override;
 
     protected:
-    ValueNode* parent_1;
-    ValueNode* parent_2;
+    Signal* parent_1;
+    Signal* parent_2;
 };
 
 

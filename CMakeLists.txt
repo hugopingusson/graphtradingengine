@@ -19,22 +19,22 @@ add_executable(GraphTradingEngine main.cpp
         Helper/FutureHelper.h
         Helper/DateHelper.cpp
         Helper/DateHelper.h
-        Core/Node/Node.cpp
-        Core/Node/Node.h
+        Core/Node/Base/Node.cpp
+        Core/Node/Base/Node.h
         Logger/Logger.cpp
         Logger/Logger.h
         Core/Graph/Event.cpp
         Core/Graph/Event.h
-        Core/Node/Market.cpp
-        Core/Node/Market.h
+        Core/Node/Base/MarketNode.cpp
+        Core/Node/Base/MarketNode.h
         Core/Graph/Graph.cpp
         Core/Graph/Graph.h
-        Core/Node/Signals/OrberBook.cpp
-        Core/Node/Signals/OrberBook.h
-        Core/Node/Signals/MathNode.cpp
-        Core/Node/Signals/MathNode.h
-        Core/Event/Event.cpp
-        Core/Event/Event.h
+        Core/Node/Signals/OrderBookSignal.cpp
+        Core/Node/Signals/OrderBookSignal.h
+        Core/Node/Signals/MathSignal.cpp
+        Core/Node/Signals/MathSignal.h
+        Core/Streamer/Streamer.cpp
+        Core/Streamer/Streamer.h
 )
 
 

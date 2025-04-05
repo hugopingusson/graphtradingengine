@@ -1,14 +1,15 @@
 #include <iostream>
 
-#include "Core/Node/Node.h"
+#include "Core/Node/Base//Node.h"
 #include "DataReader/DataReader.h"
 #include "Helper/FutureHelper.h"
 #include "Logger/Logger.h"
-#include "Core/Node/Node.h"
-#include "Core/Node/Market.h"
+#include "Core/Node/Base/Node.h"
+#include "Core/Node/Base/MarketNode.h"
 #include "Core/Graph/Graph.h"
-#include "Core/Node/Signals/MathNode.h"
-#include "Core/Node/Signals/OrberBook.h"
+#include "Core/Node/Signals/MathSignal.h"
+#include "Core/Node/Signals/OrderBookSignal.h"
+#include "Core/Streamer/Streamer.h"
 
 
 // TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
@@ -19,19 +20,19 @@ int main() {
     // auto test = data_reader.get_cme_market_data_table("EURUSD","2024-04-29");
 
     Graph graph=Graph();
-    Market market=Market("EURUSD","cme",5,1e-5);
-    Market market_jpy=Market("USDJPY","cme",5,1e-5);
+    MarketOrderBook market=MarketOrderBook("EURUSD","cme",5,1e-5);
+    MarketOrderBook market_jpy=MarketOrderBook("USDJPY","cme",5,1e-5);
+
     Mid mid = Mid(&market);
     Bary bary=Bary(&market);
-
     Bary bary_jpy=Bary(&market_jpy);
-
     Skew skew=Skew(&bary,&mid);
-
     Skew skew_jpy=Skew(&bary_jpy,&skew);
 
     graph.add_source(&market);
     graph.add_source(&market_jpy);
+
+
 
     graph.add_edge(&market,&mid);
     graph.add_edge(&market,&bary);

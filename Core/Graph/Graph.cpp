@@ -5,8 +5,8 @@
 #include "Graph.h"
 
 #include <iostream>
-// Graph::Graph():sequence_number(int64_t()),last_exchange_timestamp(int64_t()),last_reception_timestamp(int64_t()),last_in_graph_timestamp(int64_t()),last_out_graph_timestamp(int64_t()),
-//     adjacency_map(map<int,vector<int>>()),node_container(map<int,Node*>()),source_container(map<int,Node*>()){
+// Graph::Graph():sequence_number(int64_t()),last_order_gateway_in_timestamp(int64_t()),last_streamer_in_timestamp(int64_t()),last_in_graph_timestamp(int64_t()),last_out_graph_timestamp(int64_t()),
+//     adjacency_map(map<int,vector<int>>()),child_node_container(map<int,Node*>()),source_container(map<int,Node*>()){
 //     logger=Logger("MainLogger","/home/hugo/gte_logs");
 // };
 
@@ -20,8 +20,8 @@ Graph::Graph(){
     last_in_graph_timestamp=int64_t();
     last_out_graph_timestamp=int64_t();
     adjacency_map=map<int,vector<int>>();
-    node_container=map<int,Node*>();
-    source_container=map<int,Node*>();
+    child_node_container=map<int,ChildNode*>();
+    source_container=map<int,SourceNode*>();
     output_container=map<int,Node*>();
     max_id=0;
 
@@ -40,12 +40,17 @@ int64_t Graph::get_last_graph_latency() const {
 
 
 bool Graph::empty() const {
-    return this->node_container.empty();
+    return (this->child_node_container.empty() && this->source_container.empty());
 }
 
 
 int Graph::get_node_id(Node* node) const{
-    for (auto &it: this->node_container) {
+    for (auto &it: this->child_node_container) {
+        if (it.second==node) {
+            return it.first;
+        }
+    }
+    for (auto &it: this->source_container) {
         if (it.second==node) {
             return it.first;
         }
@@ -57,40 +62,43 @@ int Graph::get_node_id(Node* node) const{
 
 bool Graph::checked_in(Node* node) {
     bool checked_in=false;
-    for (auto &it: this->node_container) {
+    for (auto &it: this->child_node_container) {
         if (it.second==node) {
             checked_in=true;
         }
     }
+    for (auto &it: this->source_container) {
+        if (it.second==node) {
+            checked_in=true;
+        }
+    }
+
     return checked_in;
 
 }
 
-void Graph::checkin(Node* node) {
+
+void Graph::add_source(SourceNode* source_node) {
     if (this->empty()) {
         this->max_id=0;
     }
     else {
         this->max_id+=1;
     }
-    node->set_node_id(this->max_id);
-    node->set_logger(&this->logger);
+    source_node->set_node_id(this->max_id);
+    source_node->set_logger(&this->logger);
 
 
-    this->node_container[this->max_id]=node;
     this->adjacency_map[this->max_id]=vector<int>();
+    this->logger.log_info(fmt::format("Checked in source node: node name = {} node id = {}",source_node->get_name(),source_node->get_node_id()));
 
-    this->logger.log_info(fmt::format("Checked in node: node name = {} node id = {}",node->get_name(),node->get_node_id()));
-}
-
-
-void Graph::add_source(Node* source_node) {
-    this->checkin(source_node);
     this->source_container[this->max_id]=source_node;
     this->logger.log_info(fmt::format("Added source node: {}",source_node->get_name()));
 }
 
-void Graph::add_edge(Node *publisher, Node *subscriber) {
+
+
+void Graph::add_edge(Node *publisher, ChildNode *subscriber) {
 
     int publisher_id = this->get_node_id(publisher);
     if (publisher_id==-1) {
@@ -99,7 +107,21 @@ void Graph::add_edge(Node *publisher, Node *subscriber) {
         throw std::logic_error(error_message);
     }
     if (!this->checked_in(subscriber)) {
-        this->checkin(subscriber);
+
+        if (this->empty()) {
+            this->max_id=0;
+        }
+        else {
+            this->max_id+=1;
+        }
+        subscriber->set_node_id(this->max_id);
+        subscriber->set_logger(&this->logger);
+
+
+        this->child_node_container[this->max_id]=subscriber;
+        this->adjacency_map[this->max_id]=vector<int>();
+
+        this->logger.log_info(fmt::format("Checked in child node: node name = {} node id = {}",subscriber->get_name(),subscriber->get_node_id()));
     }
     this->adjacency_map[publisher_id].push_back(this->max_id);
 
@@ -109,7 +131,7 @@ void Graph::add_edge(Node *publisher, Node *subscriber) {
 void Graph::resolve_output_nodes() {
     for (auto &node: this->adjacency_map) {
         if (this->adjacency_map[node.first].empty()) {
-            this->output_container[node.first]=this->node_container[node.first];
+            this->output_container[node.first]=this->child_node_container[node.first];
         }
     }
 }
@@ -192,7 +214,7 @@ void Graph::resolve_update_path() {
 
 void Graph::update(const int& source_id) {
     for (int& node_id:this->update_path[source_id]) {
-        this->node_container[node_id]->update();
+        this->child_node_container[node_id]->update();
     }
 }
 

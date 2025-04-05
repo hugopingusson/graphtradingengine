@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <map>
 #include <vector>
-#include "../Node/Node.h"
+#include "../Node/Base/Node.h"
 
 using namespace std;
 
@@ -25,11 +25,11 @@ class Graph {
 
     ///////////////////////////////////// GRAPH CONSTRUCTION LOGIC //////////////////////////
 
-    void checkin(Node* node);
+
     bool checked_in(Node* node);
 
-    void add_source(Node* source_node);
-    void add_edge(Node* publisher,Node* subscriber);
+    void add_source(SourceNode* source_node);
+    void add_edge(Node* publisher,ChildNode* subscriber);
     void resolve_output_nodes();
     void resolve_update_path();
     vector<vector<int>> link(int target_node_id);
@@ -51,8 +51,8 @@ class Graph {
     Logger logger;
 
     map<int,vector<int>> adjacency_map;
-    map<int,Node*> node_container;
-    map<int,Node*> source_container;
+    map<int,ChildNode*> child_node_container;
+    map<int,SourceNode*> source_container;
     map<int,Node*> output_container;
     map<int,vector<int>> update_path;
 };
