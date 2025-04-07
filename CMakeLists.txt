@@ -17,8 +17,8 @@ add_executable(GraphTradingEngine main.cpp
         DataReader/DataReader.cpp
         Helper/FutureHelper.cpp
         Helper/FutureHelper.h
-        Helper/DateHelper.cpp
-        Helper/DateHelper.h
+        Helper/TimeHelper.cpp
+        Helper/TimeHelper.h
         Core/Node/Base/Node.cpp
         Core/Node/Base/Node.h
         Logger/Logger.cpp
@@ -35,6 +35,10 @@ add_executable(GraphTradingEngine main.cpp
         Core/Node/Signals/MathSignal.h
         Core/Streamer/Streamer.cpp
         Core/Streamer/Streamer.h
+        Core/Engine/BacktestEngine.cpp
+        Core/Engine/BacktestEngine.h
+        Helper/ToolBox.cpp
+        Helper/ToolBox.h
 )
 
 

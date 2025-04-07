@@ -21,6 +21,7 @@ public:
     Market();
     Market(const string& name,const string& instrument,const string& exchange);
 
+
     string get_instrument();
     string get_exchange();
 
@@ -45,6 +46,7 @@ public:
 
     bool check_trade();
     void update(Trade* trade);
+
 
 protected:
     int side;

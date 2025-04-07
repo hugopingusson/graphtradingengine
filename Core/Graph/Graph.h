@@ -15,14 +15,18 @@ using namespace std;
 class Graph {
     public:
     Graph();
-
+    Graph(Logger* logger);
 
     int64_t get_last_graph_latency() const;
-    Logger get_logger();
+    Logger* get_logger();
+    map<int,vector<int>> get_adjacency_map();
+    map<int,ChildNode*> get_child_node_container();
+    map<int,SourceNode*> get_source_container();
+    map<int,Node*> get_output_container();
+    map<int,vector<int>> get_update_path();
 
     bool empty() const;
     int get_node_id(Node* node) const;
-
     ///////////////////////////////////// GRAPH CONSTRUCTION LOGIC //////////////////////////
 
 
@@ -42,13 +46,13 @@ class Graph {
     protected:
 
     int64_t sequence_number;
-    int64_t last_reception_timestamp;
-    int64_t last_exchange_timestamp;
+    int64_t last_in_streamer_timestamp;
+    int64_t last_in_order_gateway_timestamp;
     int64_t last_in_graph_timestamp;
     int64_t last_out_graph_timestamp;
     int max_id;
 
-    Logger logger;
+    Logger* logger;
 
     map<int,vector<int>> adjacency_map;
     map<int,ChildNode*> child_node_container;

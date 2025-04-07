@@ -13,10 +13,10 @@
 
 
 Graph::Graph(){
-    logger=Logger("MainLogger","/home/hugo/gte_logs");
+    logger=nullptr;
     sequence_number=int64_t();
-    last_exchange_timestamp=int64_t();
-    last_reception_timestamp=int64_t();
+    last_in_order_gateway_timestamp=int64_t();
+    last_in_streamer_timestamp=int64_t();
     last_in_graph_timestamp=int64_t();
     last_out_graph_timestamp=int64_t();
     adjacency_map=map<int,vector<int>>();
@@ -24,15 +24,49 @@ Graph::Graph(){
     source_container=map<int,SourceNode*>();
     output_container=map<int,Node*>();
     max_id=0;
-
-    logger.log_info("Created Graph");
-
 };
 
-Logger Graph::get_logger() {
+
+Graph::Graph(Logger *logger) {
+    this->logger=logger;
+    sequence_number=int64_t();
+    last_in_order_gateway_timestamp=int64_t();
+    last_in_streamer_timestamp=int64_t();
+    last_in_graph_timestamp=int64_t();
+    last_out_graph_timestamp=int64_t();
+    adjacency_map=map<int,vector<int>>();
+    child_node_container=map<int,ChildNode*>();
+    source_container=map<int,SourceNode*>();
+    output_container=map<int,Node*>();
+    max_id=0;
+    logger->log_info("Graph","Created Graph");
+}
+
+
+
+Logger* Graph::get_logger() {
     return this->logger;
 }
 
+map<int, vector<int> > Graph::get_adjacency_map() {
+    return this->adjacency_map;
+}
+
+map<int,ChildNode*> Graph::get_child_node_container() {
+    return this->child_node_container;
+}
+
+map<int,SourceNode*> Graph::get_source_container() {
+    return this->source_container;
+}
+
+map<int,Node*> Graph::get_output_container() {
+    return this->output_container;
+}
+
+map<int,vector<int>> Graph::get_update_path() {
+    return this->update_path;
+}
 
 int64_t Graph::get_last_graph_latency() const {
     return last_out_graph_timestamp - last_in_graph_timestamp;
@@ -80,20 +114,20 @@ bool Graph::checked_in(Node* node) {
 
 void Graph::add_source(SourceNode* source_node) {
     if (this->empty()) {
-        this->max_id=0;
+        this->max_id=1;
     }
     else {
         this->max_id+=1;
     }
     source_node->set_node_id(this->max_id);
-    source_node->set_logger(&this->logger);
+    source_node->set_logger(this->logger);
 
 
     this->adjacency_map[this->max_id]=vector<int>();
-    this->logger.log_info(fmt::format("Checked in source node: node name = {} node id = {}",source_node->get_name(),source_node->get_node_id()));
+    this->logger->log_info("Graph",fmt::format("Checked in source node: node name = {} node id = {}",source_node->get_name(),source_node->get_node_id()));
 
     this->source_container[this->max_id]=source_node;
-    this->logger.log_info(fmt::format("Added source node: {}",source_node->get_name()));
+    this->logger->log_info("Graph",fmt::format("Added source node: {}",source_node->get_name()));
 }
 
 
@@ -103,29 +137,25 @@ void Graph::add_edge(Node *publisher, ChildNode *subscriber) {
     int publisher_id = this->get_node_id(publisher);
     if (publisher_id==-1) {
         string error_message=fmt::format("Error in add_edge, could not find publisher node in the Graph: publisher={} , subcriber={}", publisher->get_name(),subscriber->get_name());
-        this->logger.log_error(error_message);
+        this->logger->log_error("Graph",error_message);
         throw std::logic_error(error_message);
     }
     if (!this->checked_in(subscriber)) {
 
-        if (this->empty()) {
-            this->max_id=0;
-        }
-        else {
-            this->max_id+=1;
-        }
+        this->max_id+=1;
+
         subscriber->set_node_id(this->max_id);
-        subscriber->set_logger(&this->logger);
+        subscriber->set_logger(this->logger);
 
 
         this->child_node_container[this->max_id]=subscriber;
         this->adjacency_map[this->max_id]=vector<int>();
 
-        this->logger.log_info(fmt::format("Checked in child node: node name = {} node id = {}",subscriber->get_name(),subscriber->get_node_id()));
+        this->logger->log_info("Graph",fmt::format("Checked in child node: node name = {} node id = {}",subscriber->get_name(),subscriber->get_node_id()));
     }
     this->adjacency_map[publisher_id].push_back(this->max_id);
 
-    this->logger.log_info(fmt::format("Added edge : {} -----> {}",publisher->get_name(),subscriber->get_name()));
+    this->logger->log_info("Graph",fmt::format("Added edge : {} -----> {}",publisher->get_name(),subscriber->get_name()));
 }
 
 void Graph::resolve_output_nodes() {

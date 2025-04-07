@@ -36,6 +36,8 @@ class HeartBeat : public Event {
     ~HeartBeat() override =default;
     explicit HeartBeat(const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const double& clock_frequency);
 
+    double get_clock_frequency() const;
+
     protected:
     double clock_frequency;
 };

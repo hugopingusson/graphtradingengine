@@ -6,13 +6,21 @@
 #define CLASS_DATEHELPER_H
 
 #include <ctime>
+#include <cstdint>
+#include <chrono>
 
 using namespace std;
 
-class DateHelper
+class TimeHelper
 {
     public:
-    DateHelper();
+    TimeHelper();
+
+    int64_t now_nanoseconds_resolution_int64();
+    int64_t now_second_resolution_int64();
+
+
+
 
 };
 

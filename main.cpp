@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "Core/Engine/BacktestEngine.h"
 #include "Core/Node/Base//Node.h"
 #include "DataReader/DataReader.h"
 #include "Helper/FutureHelper.h"
@@ -18,8 +19,8 @@ int main() {
 
     // DataReader data_reader = DataReader();
     // auto test = data_reader.get_cme_market_data_table("EURUSD","2024-04-29");
-
-    Graph graph=Graph();
+    Logger logger = Logger("MainLogger","/home/hugo/gte_logs");
+    Graph graph=Graph(&logger);
     MarketOrderBook market=MarketOrderBook("EURUSD","cme",5,1e-5);
     MarketOrderBook market_jpy=MarketOrderBook("USDJPY","cme",5,1e-5);
 
@@ -44,12 +45,9 @@ int main() {
     graph.add_edge(&bary_jpy,&skew_jpy);
     graph.add_edge(&skew,&skew_jpy);
 
-    graph.resolve_update_path();
+    BacktestEngine  backtest_engine = BacktestEngine(logger,graph);
+    backtest_engine.initialize();
 
-    // Logger logger = Logger();
-    // logger.log_error("Ceci est une error");
-    // logger.log_info("Ceci est une info");
-    // auto file_logger = spdlog::basic_logger_mt("file_logger", "logs.txt");
     return 1;
 }
 

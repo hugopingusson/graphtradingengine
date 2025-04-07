@@ -8,13 +8,11 @@
 
 #include <map>
 #include <fmt/format.h>
-
+#include <regex>
 #include "../Node/Base/MarketNode.h"
 
 using namespace std;
 using namespace fmt;
-
-
 
 
 class Streamer {
@@ -22,22 +20,62 @@ class Streamer {
     virtual ~Streamer() = default;
     Streamer();
 
-    protected:
-    MarketOrderBook* order_book_source_node;
-    MarketTrade* trade_book_source_node;
+
 
 };
 
 
-class CmeStreamer : public Streamer {
+
+
+class MarketStreamer : public Streamer {
     public:
-    CmeStreamer();
-    ~CmeStreamer() override = default;
-    CmeStreamer(const string& exchange,const string& instrument);
+    virtual ~MarketStreamer() = default;
+    MarketStreamer();
+    MarketStreamer(const string &instrument, const string &exchange,const int& trade_source_node_id,const int& order_book_source_node_id);
+    MarketStreamer(const string &instrument, const string &exchange);
+
+    string get_instrument();
+    string get_exchange();
+
+    void set_order_book_source_node_id(const int& order_book_source_node_id);
+    void set_trade_source_node_id(const int& trade_source_node_id);
+
+    int get_order_book_source_node_id();
+    int get_trade_source_node_id();
 
     protected:
     string exchange;
     string instrument;
+    int order_book_source_node_id;
+    int trade_source_node_id;
+
+};
+
+
+class HeartBeatStreamer : public Streamer {
+    public:
+    ~HeartBeatStreamer() override = default;
+    HeartBeatStreamer();
+    explicit HeartBeatStreamer(const double& frequency);
+
+    double get_frequency();
+    int get_target_source_node_id();
+
+    protected:
+    double frequency;
+    int heartbeat_source_node_id;
+};
+
+
+
+
+class CmeStreamer : public MarketStreamer {
+    public:
+    CmeStreamer();
+    ~CmeStreamer() override = default;
+    CmeStreamer(const string &instrument, const string &exchange);
+    CmeStreamer(const string& instrument,const string& exchange,const int& trade_source_node_id,const int& order_book_source_node_id);
+
 
 };
 
@@ -45,12 +83,17 @@ class StreamerContainer {
     public:
     StreamerContainer();
     ~StreamerContainer();
-    void add_streamer(const string& exchange,const string& pair);
 
+
+    void add_cme_streamer(Market* market);
+    void register_market_source(Market* market);
+    void register_heartbeat_source(HeartBeat* heart_beat);
+
+    void register_source(SourceNode* source_node);
 
     protected:
-    int max_id;
-    map<int,Streamer*> streamers;
+    vector<MarketStreamer*> market_streamers;
+    vector<HeartBeatStreamer*> heartbeat_streamers;
 
 };
 

@@ -23,6 +23,11 @@ HeartBeat::HeartBeat():Event(){};
 HeartBeat::HeartBeat(const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const double& clock_frequency):Event(last_streamer_in_timestamp,source_id_trigger),clock_frequency(clock_frequency){};
 
 
+double HeartBeat::get_clock_frequency() const {
+    return this->clock_frequency;
+}
+
+
 
 MarketEvent::MarketEvent():Event(),last_order_gateway_in_timestamp(int64_t()),last_capture_server_in_timestamp(int64_t()) {};
 MarketEvent::MarketEvent(const int64_t& last_order_gateway_in_timestamp,const int64_t& last_capture_server_in_timestamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger):Event(last_streamer_in_timestamp,source_id_trigger),last_order_gateway_in_timestamp(last_order_gateway_in_timestamp),last_capture_server_in_timestamp(last_capture_server_in_timestamp) {};

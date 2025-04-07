@@ -21,6 +21,8 @@ string Market::get_exchange() {
 MarketOrderBook::MarketOrderBook():Market(),depth(int()),tick_value(double()){};
 MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value):Market(fmt::format("MarketOrderBook(instrument={},exchange={})",instrument,exchange),instrument,exchange),depth(depth),tick_value(tick_value){};
 
+
+
 map<string,vector<double>> MarketOrderBook::get_data() {
     return this->data;
 }
@@ -138,27 +140,27 @@ void MarketOrderBook::update(OrderBookSnapshot* order_book_snapshot) {
 bool MarketOrderBook::check_snapshot() {
 
   if (this->ask_price(0)==0){
-    this->logger->log_error(fmt::format(" [MarketOrderBook]: ask price received by {} is 0, setting to invalid",this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("ask price received by {} is 0, setting to invalid",this->name));
     return false;
   }
 
   if (this->bid_price(0)==0){
-    this->logger->log_error(fmt::format(" [MarketOrderBook]: bid price received by {} is 0, setting to invalid",this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("bid price received by {} is 0, setting to invalid",this->name));
     return false;
   }
 
   if (this->ask_size(0)==0){
-    this->logger->log_error(fmt::format(" [MarketOrderBook]: ask size received by {} is 0, setting to invalid",this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("ask size received by {} is 0, setting to invalid",this->name));
     return false;
   }
 
   if (this->bid_size(0)==0){
-    this->logger->log_error(fmt::format(" [MarketOrderBook]: bid size received by {} is 0, setting to invalid",this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("bid size received by {} is 0, setting to invalid",this->name));
     return false;
   }
 
   if (this->ask_price(0)>=this->bid_price(0)){
-    this->logger->log_error(fmt::format(" [MarketOrderBook]: snapshot received by {} show ask={}>=bid={} , setting to invalid",this->name,this->ask_price(0),this->bid_price(0)));
+    this->logger->log_error("MarketOrderBook",fmt::format("snapshot received by {} show ask={}>=bid={} , setting to invalid",this->name,this->ask_price(0),this->bid_price(0)));
   	return false;
   }
 
@@ -170,6 +172,7 @@ bool MarketOrderBook::check_snapshot() {
 
 MarketTrade::MarketTrade():Market(),trade_price(),side(),base_quantity(){}
 MarketTrade::MarketTrade(const string &instrument, const string &exchange):Market(fmt::format("MarketTrade(instrument={},exchange={})",instrument,exchange),instrument,exchange),trade_price(),side(),base_quantity(){}
+
 
 int MarketTrade::get_side() {
     return this->side;
@@ -193,7 +196,7 @@ void MarketTrade::update(Trade* trade) {
     this->last_capture_server_in_timestamp = trade->get_last_capture_server_in_timestamp();
     this->last_order_gateway_in_timestamp = trade->get_last_order_gateway_in_timestamp();
 
-    this->side = trade->get_trade_price();
+    this->side = trade->get_side();
     this->trade_price = trade->get_trade_price();
     this->base_quantity = trade->get_base_quantity();
 
@@ -209,17 +212,17 @@ void MarketTrade::update(Trade* trade) {
 bool MarketTrade::check_trade() {
 
     if (this->trade_price<0){
-        this->logger->log_error(fmt::format(" [MarketTrade]: trade price received by {} is less than 0, setting to invalid",this->name));
+        this->logger->log_error("MarketTrade",fmt::format("trade price received by {} is less than 0, setting to invalid",this->name));
         return false;
     }
 
     if (std::abs(this->side)!=1){
-        this->logger->log_error(fmt::format(" [MarketTrade]: side received by {} is different from 1 or -1, setting to invalid",this->name));
+        this->logger->log_error("MarketTrade",fmt::format("side received by {} is different from 1 or -1, setting to invalid",this->name));
         return false;
     }
 
     if (this->base_quantity<0){
-        this->logger->log_error(fmt::format(" [MarketTrade]: base quantity received by {} less than 0, setting to invalid",this->name));
+        this->logger->log_error("MarketTrade",fmt::format("base quantity received by {} less than 0, setting to invalid",this->name));
         return false;
     }
 
