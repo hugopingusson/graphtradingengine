@@ -7,6 +7,8 @@
 #include <fmt/core.h>
 #include <map>
 #include <vector>
+
+#include "HeartBeat.h"
 #include "../../Graph/Event.h"
 #include "Node.h"
 
@@ -45,7 +47,8 @@ public:
     double get_quote_quantity();
 
     bool check_trade();
-    void update(Trade* trade);
+    void update_event(Trade* trade);
+    void update() override;
 
 
 protected:
@@ -69,7 +72,8 @@ class MarketOrderBook:public Market {
     double get_tick_value();
 
     bool check_snapshot();
-    void update(OrderBookSnapshot* order_book_snapshot);
+    void update_event(OrderBookSnapshot* order_book_snapshot);
+    void update() override;
 
     double ask_price(const int& i) const;
     double ask_size(const int& i) const;
@@ -100,7 +104,7 @@ class MarketOrderBook:public Market {
     map<string,vector<double>> data;
     int depth;
     double tick_value;
-
+    HeartBeat* heart_beat_node;
 
 
 

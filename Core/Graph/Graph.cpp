@@ -20,7 +20,7 @@ Graph::Graph(){
     last_in_graph_timestamp=int64_t();
     last_out_graph_timestamp=int64_t();
     adjacency_map=map<int,vector<int>>();
-    child_node_container=map<int,ChildNode*>();
+    child_node_container=map<int,Node*>();
     source_container=map<int,SourceNode*>();
     output_container=map<int,Node*>();
     max_id=0;
@@ -35,7 +35,7 @@ Graph::Graph(Logger *logger) {
     last_in_graph_timestamp=int64_t();
     last_out_graph_timestamp=int64_t();
     adjacency_map=map<int,vector<int>>();
-    child_node_container=map<int,ChildNode*>();
+    child_node_container=map<int,Node*>();
     source_container=map<int,SourceNode*>();
     output_container=map<int,Node*>();
     max_id=0;
@@ -52,7 +52,7 @@ map<int, vector<int> > Graph::get_adjacency_map() {
     return this->adjacency_map;
 }
 
-map<int,ChildNode*> Graph::get_child_node_container() {
+map<int,Node*> Graph::get_child_node_container() {
     return this->child_node_container;
 }
 
@@ -132,7 +132,7 @@ void Graph::add_source(SourceNode* source_node) {
 
 
 
-void Graph::add_edge(Node *publisher, ChildNode *subscriber) {
+void Graph::add_edge(Node *publisher, Node *subscriber) {
 
     int publisher_id = this->get_node_id(publisher);
     if (publisher_id==-1) {

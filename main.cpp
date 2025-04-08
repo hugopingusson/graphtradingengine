@@ -23,6 +23,7 @@ int main() {
     Graph graph=Graph(&logger);
     MarketOrderBook market=MarketOrderBook("EURUSD","cme",5,1e-5);
     MarketOrderBook market_jpy=MarketOrderBook("USDJPY","cme",5,1e-5);
+    HeartBeat heart_beat = HeartBeat(0.1);
 
     Mid mid = Mid(&market);
     Bary bary=Bary(&market);
@@ -34,7 +35,7 @@ int main() {
     graph.add_source(&market_jpy);
 
 
-
+    graph.add_edge(&heart_beat,&market);
     graph.add_edge(&market,&mid);
     graph.add_edge(&market,&bary);
     graph.add_edge(&market_jpy,&bary_jpy);
@@ -45,9 +46,10 @@ int main() {
     graph.add_edge(&bary_jpy,&skew_jpy);
     graph.add_edge(&skew,&skew_jpy);
 
-    BacktestEngine  backtest_engine = BacktestEngine(logger,graph);
+    BacktestEngine  backtest_engine = BacktestEngine(&logger,&graph);
     backtest_engine.initialize();
 
+    cout << "Done" << endl;
     return 1;
 }
 

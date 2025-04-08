@@ -39,6 +39,8 @@ add_executable(GraphTradingEngine main.cpp
         Core/Engine/BacktestEngine.h
         Helper/ToolBox.cpp
         Helper/ToolBox.h
+        Core/Node/Base/HeartBeat.cpp
+        Core/Node/Base/HeartBeat.h
 )
 
 

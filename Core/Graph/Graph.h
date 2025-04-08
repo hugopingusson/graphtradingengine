@@ -20,7 +20,7 @@ class Graph {
     int64_t get_last_graph_latency() const;
     Logger* get_logger();
     map<int,vector<int>> get_adjacency_map();
-    map<int,ChildNode*> get_child_node_container();
+    map<int,Node*> get_child_node_container();
     map<int,SourceNode*> get_source_container();
     map<int,Node*> get_output_container();
     map<int,vector<int>> get_update_path();
@@ -33,7 +33,7 @@ class Graph {
     bool checked_in(Node* node);
 
     void add_source(SourceNode* source_node);
-    void add_edge(Node* publisher,ChildNode* subscriber);
+    void add_edge(Node* publisher,Node* subscriber);
     void resolve_output_nodes();
     void resolve_update_path();
     vector<vector<int>> link(int target_node_id);
@@ -55,7 +55,7 @@ class Graph {
     Logger* logger;
 
     map<int,vector<int>> adjacency_map;
-    map<int,ChildNode*> child_node_container;
+    map<int,Node*> child_node_container;
     map<int,SourceNode*> source_container;
     map<int,Node*> output_container;
     map<int,vector<int>> update_path;

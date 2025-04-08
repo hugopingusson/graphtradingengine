@@ -10,6 +10,8 @@
 #include <fmt/format.h>
 #include <regex>
 #include "../Node/Base/MarketNode.h"
+#include "../../Logger/Logger.h"
+#include "../Node/Base/HeartBeat.h"
 
 using namespace std;
 using namespace fmt;
@@ -19,6 +21,8 @@ class Streamer {
     public:
     virtual ~Streamer() = default;
     Streamer();
+
+    virtual string get_name()=0;
 
 
 
@@ -58,6 +62,8 @@ class HeartBeatStreamer : public Streamer {
     HeartBeatStreamer();
     explicit HeartBeatStreamer(const double& frequency);
 
+    void set_heartbeat_source_node_id(const int& heartbeat_source_node_id);
+    string get_name() override;
     double get_frequency();
     int get_target_source_node_id();
 
@@ -73,6 +79,9 @@ class CmeStreamer : public MarketStreamer {
     public:
     CmeStreamer();
     ~CmeStreamer() override = default;
+
+    string get_name() override;
+
     CmeStreamer(const string &instrument, const string &exchange);
     CmeStreamer(const string& instrument,const string& exchange,const int& trade_source_node_id,const int& order_book_source_node_id);
 
@@ -82,6 +91,7 @@ class CmeStreamer : public MarketStreamer {
 class StreamerContainer {
     public:
     StreamerContainer();
+    StreamerContainer(Logger* logger);
     ~StreamerContainer();
 
 
@@ -92,6 +102,7 @@ class StreamerContainer {
     void register_source(SourceNode* source_node);
 
     protected:
+    Logger* logger;
     vector<MarketStreamer*> market_streamers;
     vector<HeartBeatStreamer*> heartbeat_streamers;
 

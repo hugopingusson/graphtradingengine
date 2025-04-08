@@ -18,18 +18,18 @@
 class BacktestEngine {
     public:
     BacktestEngine();
-    BacktestEngine(const Logger& logger,const Graph& graph);
+    BacktestEngine(Logger* logger,Graph* graph);
 
-    Graph get_graph();
-    Logger get_logger();
+    Graph* get_graph();
+    Logger* get_logger();
     StreamerContainer get_streamer_container();
 
     void initialize();
     void build_streamer_container();
 
     protected:
-    Graph graph;
-    Logger logger;
+    Graph* graph;
+    Logger* logger;
     StreamerContainer streamer_container;
 
 };

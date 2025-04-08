@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "../../../Logger/Logger.h"
+#include "../../Graph/Event.h"
 
 using namespace std;
 
@@ -31,9 +32,10 @@ class Node {
     [[nodiscard]] int64_t get_last_adapter_timestamp() const;
 
     void set_name(const string& name);
-
     void set_logger(Logger* main_logger);
     void set_node_id(const int& node_id);
+
+    virtual void update()=0;
 
     protected:
     int node_id;
@@ -54,22 +56,25 @@ class SourceNode:public Node {
     SourceNode();
     explicit SourceNode(const string& name);
 
+    virtual void update_event(Event* event)=0;
 
 };
 
 
-class ChildNode:public Node {
-    public:
-    virtual ~ChildNode() = default;
-    ChildNode();
-    ChildNode(const int& node_id,const string& name,Logger* main_logger);
-    explicit ChildNode(const string& name);
+// class ChildNode:public Node {
+//     public:
+//     virtual ~ChildNode() = default;
+//     ChildNode();
+//     ChildNode(const int& node_id,const string& name,Logger* main_logger);
+//     explicit ChildNode(const string& name);
+//
+//     virtual void update()=0;
+//
+// };
 
-    virtual void update()=0;
 
-};
 
-class Quote : public ChildNode {
+class Quote : public Node {
     public:
     ~Quote() override = default;
 
@@ -93,7 +98,7 @@ class Quote : public ChildNode {
 
 };
 
-class Signal: public ChildNode {
+class Signal: public Node {
     public:
     ~Signal() override = default;
     Signal();

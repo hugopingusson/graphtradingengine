@@ -30,16 +30,16 @@ class Event {
 
 };
 
-class HeartBeat : public Event {
+class HeartBeatEvent : public Event {
     public:
-    HeartBeat();
-    ~HeartBeat() override =default;
-    explicit HeartBeat(const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const double& clock_frequency);
+    HeartBeatEvent();
+    ~HeartBeatEvent() override =default;
+    explicit HeartBeatEvent(const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const double& clock_frequency);
 
-    double get_clock_frequency() const;
+    double get_frequency() const;
 
     protected:
-    double clock_frequency;
+    double frequency;
 };
 
 class MarketEvent : public Event {

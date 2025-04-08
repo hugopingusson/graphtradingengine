@@ -19,12 +19,12 @@ int Event::get_source_id_trigger() const {
 }
 
 
-HeartBeat::HeartBeat():Event(){};
-HeartBeat::HeartBeat(const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const double& clock_frequency):Event(last_streamer_in_timestamp,source_id_trigger),clock_frequency(clock_frequency){};
+HeartBeatEvent::HeartBeatEvent():Event(){};
+HeartBeatEvent::HeartBeatEvent(const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const double& clock_frequency):Event(last_streamer_in_timestamp,source_id_trigger),frequency(clock_frequency){};
 
 
-double HeartBeat::get_clock_frequency() const {
-    return this->clock_frequency;
+double HeartBeatEvent::get_frequency() const {
+    return this->frequency;
 }
 
 
