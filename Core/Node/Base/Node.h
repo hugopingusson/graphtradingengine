@@ -11,6 +11,8 @@
 
 #include "../../../Logger/Logger.h"
 #include "../../Graph/Event.h"
+#include "../../../Helper/TimeHelper.h"
+#include "../../Graph/EventHandler.h"
 
 using namespace std;
 
@@ -21,21 +23,19 @@ class Node {
 
     Node();
     explicit Node(const string& name);
-    explicit Node(const int& node_id,const string& name,Logger* main_logger);
+    // explicit Node(const int& node_id,const string& name,Logger* main_logger);
 
 
     [[nodiscard]] string get_name() const;
     [[nodiscard]] int get_node_id() const;
     [[nodiscard]] bool is_valid() const;
-    [[nodiscard]] int64_t get_last_reception_timestamp() const;
-    [[nodiscard]] int64_t get_last_exchange_timestamp() const;
-    [[nodiscard]] int64_t get_last_adapter_timestamp() const;
+    [[nodiscard]] int64_t get_last_streamer_in_timestamp() const;
+    [[nodiscard]] int64_t get_last_order_gateway_in_timestamp() const;
+    [[nodiscard]] int64_t get_last_capture_server_in_timestamp() const;
 
     void set_name(const string& name);
     void set_logger(Logger* main_logger);
     void set_node_id(const int& node_id);
-
-    virtual void update()=0;
 
     protected:
     int node_id;
@@ -45,42 +45,59 @@ class Node {
     int64_t last_order_gateway_in_timestamp; //exchange timestamp
     int64_t last_capture_server_in_timestamp;
     bool valid;
+    TimeHelper time_helper;
     Logger* logger;
 
 
 };
 
-class SourceNode:public Node {
+class SourceNode:public virtual Node {
     public:
     virtual ~SourceNode() = default;
     SourceNode();
-    explicit SourceNode(const string& name);
+    // explicit SourceNode(const string& name); /// No only default
 
-    virtual void update_event(Event* event)=0;
+    virtual void on_event(Event* event)=0;
 
 };
 
 
-// class ChildNode:public Node {
-//     public:
-//     virtual ~ChildNode() = default;
-//     ChildNode();
-//     ChildNode(const int& node_id,const string& name,Logger* main_logger);
-//     explicit ChildNode(const string& name);
+// template <typename Derived>
+// class SourceNode:public virtual Node,public EventHandler<Derived>  {
+// public:
+//     virtual ~SourceNode() = default;
+//     SourceNode();
+//     // explicit SourceNode(const string& name); /// No only default
 //
-//     virtual void update()=0;
+//     void on_event(Event* event) {
+//         if (event) {
+//             event->dispatchTo(static_cast<Derived&>(*this));
+//         }
+//     }
 //
 // };
 
 
+class ChildNode:public virtual Node {
+    public:
+    virtual ~ChildNode() = default;
+    ChildNode();
+    // ChildNode(const int& node_id,const string& name,Logger* main_logger); // No only default
+    // explicit ChildNode(const string& name);
 
-class Quote : public Node {
+    virtual void update()=0;
+
+};
+
+
+
+class Quote : public ChildNode {
     public:
     ~Quote() override = default;
 
     Quote();
-    explicit Quote(const string& name);
-    explicit Quote(const int& node_id,const string& name,Logger* main_logger);
+    // explicit Quote(const string& name);
+    // explicit Quote(const int& node_id,const string& name,Logger* main_logger);
 
     double get_ask_price();
     double get_bid_price();
@@ -98,11 +115,11 @@ class Quote : public Node {
 
 };
 
-class Signal: public Node {
+class Signal: public ChildNode {
     public:
     ~Signal() override = default;
     Signal();
-    explicit Signal(const int& node_id,const string& name,Logger* logger);
+    // explicit Signal(const int& node_id,const string& name,Logger* logger);
 
 
 
@@ -124,7 +141,7 @@ class MonoSignal: public Signal {
     ~MonoSignal() override = default;
     MonoSignal();
     MonoSignal(Node* parent);
-    explicit MonoSignal(const int& node_id,const string& name,Node* parent,Logger* logger);
+    // explicit MonoSignal(const int& node_id,const string& name,Node* parent,Logger* logger);
     virtual double compute()=0;
 
 

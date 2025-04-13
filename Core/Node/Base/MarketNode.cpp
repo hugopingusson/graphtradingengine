@@ -4,8 +4,10 @@
 
 #include "MarketNode.h"
 
-Market::Market():SourceNode(){};
-Market::Market(const string& name,const string& instrument, const string& exchange):SourceNode(name),instrument(instrument),exchange(exchange) {}
+#include <iostream>
+
+Market::Market(){};
+Market::Market(const string& instrument, const string& exchange):instrument(instrument),exchange(exchange) {}
 
 
 string Market::get_instrument() {
@@ -18,8 +20,11 @@ string Market::get_exchange() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MarketOrderBook::MarketOrderBook():Market(),depth(int()),tick_value(double()){};
-MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value):Market(fmt::format("MarketOrderBook(instrument={},exchange={})",instrument,exchange),instrument,exchange),depth(depth),tick_value(tick_value){};
+MarketOrderBook::MarketOrderBook():depth(),tick_value(),heart_beat_node(nullptr){};
+MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value):Node(fmt::format("MarketOrderBook(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),depth(depth),tick_value(tick_value),heart_beat_node(nullptr){};
+MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value,HeartBeat* heart_beat_node):MarketOrderBook(instrument,exchange,depth,tick_value) {
+    this->heart_beat_node=heart_beat_node;
+};
 
 
 
@@ -120,11 +125,12 @@ double MarketOrderBook::cumulative_bid_amount(const int& i) const {
 }
 
 
-void MarketOrderBook::update(OrderBookSnapshot* order_book_snapshot) {
+// void MarketOrderBook::handle(OrderBookSnapshot& order_book_snapshot) {
+void MarketOrderBook::on_event(Event* event) {
+    OrderBookSnapshot* order_book_snapshot = dynamic_cast<OrderBookSnapshot*>(event);
 	this->last_streamer_in_timestamp = order_book_snapshot->get_last_streamer_in_timestamp();
     this->last_capture_server_in_timestamp = order_book_snapshot->get_last_capture_server_in_timestamp();
     this->last_order_gateway_in_timestamp = order_book_snapshot->get_last_order_gateway_in_timestamp();
-
     this->data = order_book_snapshot->get_data();
 
     if (!this->check_snapshot()) {
@@ -135,6 +141,15 @@ void MarketOrderBook::update(OrderBookSnapshot* order_book_snapshot) {
      }
 
 }
+
+void MarketOrderBook::update() {
+    if (this->heart_beat_node->get_last_streamer_in_timestamp()-this->last_streamer_in_timestamp > 3*1e6) {
+        this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at ", this->name,this->time_helper.convert_nanoseconds_to_string(this->last_streamer_in_timestamp)));
+        this->valid = false;
+
+    }
+}
+
 
 
 bool MarketOrderBook::check_snapshot() {
@@ -170,8 +185,8 @@ bool MarketOrderBook::check_snapshot() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MarketTrade::MarketTrade():Market(),trade_price(),side(),base_quantity(){}
-MarketTrade::MarketTrade(const string &instrument, const string &exchange):Market(fmt::format("MarketTrade(instrument={},exchange={})",instrument,exchange),instrument,exchange),trade_price(),side(),base_quantity(){}
+MarketTrade::MarketTrade():trade_price(),side(),base_quantity(){}
+MarketTrade::MarketTrade(const string &instrument, const string &exchange):Node(fmt::format("MarketTrade(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),trade_price(),side(),base_quantity(){}
 
 
 int MarketTrade::get_side() {
@@ -191,7 +206,9 @@ double MarketTrade::get_quote_quantity() {
 }
 
 
-void MarketTrade::update(Trade* trade) {
+// void MarketTrade::handle(Trade& trade) {
+void MarketTrade::on_event(Event* event) {
+    Trade* trade = dynamic_cast<Trade*>(event);
     this->last_streamer_in_timestamp = trade->get_last_streamer_in_timestamp();
     this->last_capture_server_in_timestamp = trade->get_last_capture_server_in_timestamp();
     this->last_order_gateway_in_timestamp = trade->get_last_order_gateway_in_timestamp();

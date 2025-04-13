@@ -20,9 +20,9 @@ Graph::Graph(){
     last_in_graph_timestamp=int64_t();
     last_out_graph_timestamp=int64_t();
     adjacency_map=map<int,vector<int>>();
-    child_node_container=map<int,Node*>();
+    child_node_container=map<int,ChildNode*>();
     source_container=map<int,SourceNode*>();
-    output_container=map<int,Node*>();
+    output_container=map<int,ChildNode*>();
     max_id=0;
 };
 
@@ -35,9 +35,9 @@ Graph::Graph(Logger *logger) {
     last_in_graph_timestamp=int64_t();
     last_out_graph_timestamp=int64_t();
     adjacency_map=map<int,vector<int>>();
-    child_node_container=map<int,Node*>();
+    child_node_container=map<int,ChildNode*>();
     source_container=map<int,SourceNode*>();
-    output_container=map<int,Node*>();
+    output_container=map<int,ChildNode*>();
     max_id=0;
     logger->log_info("Graph","Created Graph");
 }
@@ -52,15 +52,17 @@ map<int, vector<int> > Graph::get_adjacency_map() {
     return this->adjacency_map;
 }
 
-map<int,Node*> Graph::get_child_node_container() {
+map<int,ChildNode*> Graph::get_child_node_container() {
     return this->child_node_container;
 }
 
+// template <typename Derived>
+// map<int,SourceNode<Derived>*> Graph::get_source_container() {
 map<int,SourceNode*> Graph::get_source_container() {
     return this->source_container;
 }
 
-map<int,Node*> Graph::get_output_container() {
+map<int,ChildNode*> Graph::get_output_container() {
     return this->output_container;
 }
 
@@ -111,7 +113,8 @@ bool Graph::checked_in(Node* node) {
 
 }
 
-
+// template <typename Derived>
+// void Graph::add_source(SourceNode<Derived>* source_node) {
 void Graph::add_source(SourceNode* source_node) {
     if (this->empty()) {
         this->max_id=1;
@@ -132,7 +135,7 @@ void Graph::add_source(SourceNode* source_node) {
 
 
 
-void Graph::add_edge(Node *publisher, Node *subscriber) {
+void Graph::add_edge(Node *publisher, ChildNode *subscriber) {
 
     int publisher_id = this->get_node_id(publisher);
     if (publisher_id==-1) {
@@ -200,7 +203,12 @@ void Graph::resolve_update_path() {
         for (auto &path: all_update_path) {
             if (path.front()==it.first) {
                 path.erase(path.begin());
-                sub_path.push_back(path);
+
+                if (path.empty()) {
+                    this->logger->log_warn("Graph",fmt::format("Source node = {} is not connected to any child node",it.second->get_name()));
+                }else {
+                    sub_path.push_back(path);
+                }
             }
         }
 

@@ -7,6 +7,7 @@
 
 #include "../Base/Node.h"
 
+// class HeartBeat : public SourceNode<HeartBeat> {
 class HeartBeat : public SourceNode {
     public:
     HeartBeat();
@@ -14,8 +15,8 @@ class HeartBeat : public SourceNode {
     HeartBeat(const double& frequency);
 
     double get_frequency() const;
-    void update_event(HeartBeatEvent* trade);
-    void update() override;
+    // void handle(HeartBeatEvent& heart_beat_event);
+    void on_event(Event* event) override;
 
     protected:
     double frequency;

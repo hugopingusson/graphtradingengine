@@ -77,6 +77,14 @@ void Logger::log_error(const string& component,const string& msg) {
     this->spdlogger->error(fmt::format("[{}] {}",component,msg));
 }
 
+void Logger::log_warn(const string& component,const string& msg) {
+    this->spdlogger->warn(fmt::format("[{}] {}",component,msg));
+}
+
+void Logger::throw_error(const string& component,const string& msg) {
+    this->spdlogger->error("[{}] {}",component,msg);
+    throw std::runtime_error(fmt::format("[{}] {}",component,msg));
+}
 
 // Logger::Logger(const string& logger_name,const string& log_location){
 //     this->log_location=log_location;

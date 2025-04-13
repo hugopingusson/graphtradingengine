@@ -28,7 +28,9 @@ class Logger {
 
     void log_info(const string& component,const string& msg);
     void log_error(const string& component,const string& msg);
+    void log_warn(const string& component,const string& msg);
 
+    void throw_error(const string& component,const string& msg);
 
 
     protected:

@@ -19,7 +19,8 @@ int Event::get_source_id_trigger() const {
 }
 
 
-HeartBeatEvent::HeartBeatEvent():Event(){};
+
+HeartBeatEvent::HeartBeatEvent():frequency(){};
 HeartBeatEvent::HeartBeatEvent(const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const double& clock_frequency):Event(last_streamer_in_timestamp,source_id_trigger),frequency(clock_frequency){};
 
 

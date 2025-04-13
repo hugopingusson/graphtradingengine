@@ -97,9 +97,13 @@ class StreamerContainer {
 
     void add_cme_streamer(Market* market);
     void register_market_source(Market* market);
+
+    void register_source(SourceNode *source_node);
+
     void register_heartbeat_source(HeartBeat* heart_beat);
 
-    void register_source(SourceNode* source_node);
+    // template <typename Derived>
+    // void register_source(SourceNode<Derived>* source_node);
 
     protected:
     Logger* logger;

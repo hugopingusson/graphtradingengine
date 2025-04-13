@@ -41,6 +41,7 @@ add_executable(GraphTradingEngine main.cpp
         Helper/ToolBox.h
         Core/Node/Base/HeartBeat.cpp
         Core/Node/Base/HeartBeat.h
+        Core/Graph/EventHandler.h
 )
 
 

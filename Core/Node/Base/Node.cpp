@@ -1,4 +1,5 @@
 #include "Node.h"
+#include "../../Graph/EventHandler.h"
 #include <cmath>
 
 Node::Node() {
@@ -10,6 +11,7 @@ Node::Node() {
     name=string();
     logger=nullptr;
     node_id=int();
+    time_helper=TimeHelper();
 }
 
 Node::Node(const string& name) {
@@ -21,18 +23,19 @@ Node::Node(const string& name) {
     this->name=name;
     logger=nullptr;
     node_id=int();
+    time_helper=TimeHelper();
 }
 
-Node::Node(const int& node_id,const string &name,Logger* logger) {
-    this->node_id=node_id;
-    sequence_number = int64_t();
-    last_order_gateway_in_timestamp=int64_t();
-    last_streamer_in_timestamp=int64_t();
-    last_capture_server_in_timestamp=int64_t();
-    valid=false;
-    this->name=name;
-    this->logger=logger;
-}
+// Node::Node(const int& node_id,const string &name,Logger* logger) {
+//     this->node_id=node_id;
+//     sequence_number = int64_t();
+//     last_order_gateway_in_timestamp=int64_t();
+//     last_streamer_in_timestamp=int64_t();
+//     last_capture_server_in_timestamp=int64_t();
+//     valid=false;
+//     this->name=name;
+//     this->logger=logger;
+// }
 
 string Node::get_name() const {
     return this->name;
@@ -46,15 +49,15 @@ bool Node::is_valid() const {
     return this->valid;
 }
 
-int64_t Node::get_last_exchange_timestamp() const {
+int64_t Node::get_last_order_gateway_in_timestamp() const {
     return this->last_order_gateway_in_timestamp;
 }
 
-int64_t Node::get_last_reception_timestamp() const {
+int64_t Node::get_last_streamer_in_timestamp() const {
     return this->last_streamer_in_timestamp;
 }
 
-int64_t Node::get_last_adapter_timestamp() const {
+int64_t Node::get_last_capture_server_in_timestamp() const {
     return this->last_capture_server_in_timestamp;
 }
 
@@ -72,21 +75,22 @@ void Node::set_node_id(const int& node_id) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
+SourceNode::SourceNode(){};
+// template <typename Derived>
+// SourceNode<Derived>::SourceNode(){};
+// SourceNode::SourceNode(const string& name):Node(name){};
 
-SourceNode::SourceNode():Node(){};
-SourceNode::SourceNode(const string& name):Node(name){};
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-ChildNode::ChildNode():Node(){};
-ChildNode::ChildNode(const string& name):Node(name){};
-ChildNode::ChildNode(const int& node_id,const string& name,Logger* main_logger):Node(node_id,name,main_logger){};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
-Quote::Quote():ChildNode(),ask_price(),bid_price(){};
-Quote::Quote(const string& name):ChildNode(name),ask_price(),bid_price(){};
-Quote::Quote(const int& node_id,const string& name,Logger* main_logger):ChildNode(node_id,name,main_logger),ask_price(),bid_price(){};
+
+ChildNode::ChildNode(){};
+// ChildNode::ChildNode(const string& name):Node(name){};
+// ChildNode::ChildNode(const int& node_id,const string& name,Logger* main_logger):Node(node_id,name,main_logger){};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+Quote::Quote(): ask_price(),bid_price(){};
+// Quote::Quote(const string& name):Node(name),ask_price(),bid_price(){};
+// Quote::Quote(const int& node_id,const string& name,Logger* main_logger):ChildNode(node_id,name,main_logger),ask_price(),bid_price(){};
 
 
 double Quote::get_ask_price() {
@@ -109,8 +113,8 @@ double Quote::spread() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Signal::Signal():ChildNode(),value(std::nan("")){}
-Signal::Signal(const int& node_id,const string &name,Logger* logger):ChildNode(node_id,name,logger),value(std::nan("")) {}
+Signal::Signal(): value(std::nan("")){}
+// Signal::Signal(const int& node_id,const string &name,Logger* logger):ChildNode(node_id,name,logger),value(std::nan("")) {}
 
 
 double Signal::get_value() const {
@@ -119,15 +123,15 @@ double Signal::get_value() const {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MonoSignal::MonoSignal():Signal() {
+MonoSignal::MonoSignal() {
     parent=nullptr;
 };
 
-MonoSignal::MonoSignal(Node* parent):Signal() {
+MonoSignal::MonoSignal(Node* parent) {
     this->parent=parent;
 }
 
-MonoSignal::MonoSignal(const int& node_id,const string &name,Node* parent,Logger* logger):Signal(node_id,name,logger),parent(parent) {}
+// MonoSignal::MonoSignal(const int& node_id,const string &name,Node* parent,Logger* logger):Signal(node_id,name,logger),parent(parent) {}
 
 Node *MonoSignal::get_parent() const {
     return this->parent;

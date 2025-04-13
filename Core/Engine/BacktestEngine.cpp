@@ -6,9 +6,7 @@
 
 
 BacktestEngine::BacktestEngine():logger(),graph() {}
-BacktestEngine::BacktestEngine(Logger* logger,Graph* graph):graph(graph),logger(logger){
-    this->streamer_container=StreamerContainer(logger);
-}
+BacktestEngine::BacktestEngine(Logger* logger,Graph* graph):graph(graph),logger(logger),streamer_container(StreamerContainer(logger)){}
 
 Graph* BacktestEngine::get_graph() {
     return this->graph;
@@ -39,10 +37,12 @@ void BacktestEngine::build_streamer_container() {
 
 void BacktestEngine::initialize() {
     this->logger->log_info("BacktestEngine","Initializing Backtest engine");
+
     this->logger->log_info("BacktestEngine","Resolving update path in graph");
     this->graph->resolve_update_path();
-    this->build_streamer_container();
 
+    this->logger->log_info("BacktestEngine","Building streamers");
+    this->build_streamer_container();
 
 
 

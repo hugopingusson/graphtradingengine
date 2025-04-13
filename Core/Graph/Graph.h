@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <map>
 #include <vector>
+
+#include "../Node/Base/MarketNode.h"
 #include "../Node/Base/Node.h"
 
 using namespace std;
@@ -20,9 +22,11 @@ class Graph {
     int64_t get_last_graph_latency() const;
     Logger* get_logger();
     map<int,vector<int>> get_adjacency_map();
-    map<int,Node*> get_child_node_container();
+    map<int,ChildNode*> get_child_node_container();
+    // template <typename Derived>
+    // map<int,SourceNode<Derived>*> get_source_container();
     map<int,SourceNode*> get_source_container();
-    map<int,Node*> get_output_container();
+    map<int,ChildNode*> get_output_container();
     map<int,vector<int>> get_update_path();
 
     bool empty() const;
@@ -31,9 +35,10 @@ class Graph {
 
 
     bool checked_in(Node* node);
-
+    // template <typename Derived>
+    // void add_source(SourceNode<Derived>* source_node);
     void add_source(SourceNode* source_node);
-    void add_edge(Node* publisher,Node* subscriber);
+    void add_edge(Node* publisher,ChildNode* subscriber);
     void resolve_output_nodes();
     void resolve_update_path();
     vector<vector<int>> link(int target_node_id);
@@ -43,7 +48,7 @@ class Graph {
     void update(const int& source_id);
 
 
-    protected:
+protected:
 
     int64_t sequence_number;
     int64_t last_in_streamer_timestamp;
@@ -55,9 +60,11 @@ class Graph {
     Logger* logger;
 
     map<int,vector<int>> adjacency_map;
-    map<int,Node*> child_node_container;
+    map<int,ChildNode*> child_node_container;
+    // template <typename Derived>
+    // map<int,SourceNode<Derived>*> source_container;
     map<int,SourceNode*> source_container;
-    map<int,Node*> output_container;
+    map<int,ChildNode*> output_container;
     map<int,vector<int>> update_path;
 };
 

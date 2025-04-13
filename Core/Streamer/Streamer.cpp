@@ -81,7 +81,7 @@ StreamerContainer::StreamerContainer(Logger* logger):logger(logger){}
 
 StreamerContainer::~StreamerContainer() {
     this->logger->log_info("StreamerContainer","Deleting streamers starts");
-    // Properly delete the objects in the container
+
     for (auto& market_streamer : market_streamers) {
         this->logger->log_info("StreamerContainer",fmt::format("Deleting market streamer: {}",market_streamer->get_name()));
         delete market_streamer;
@@ -94,15 +94,15 @@ StreamerContainer::~StreamerContainer() {
 
 
 
-void StreamerContainer::add_cme_streamer(Market *market) {
+void StreamerContainer::add_cme_streamer(Market* market) {
     for (auto & streamer : market_streamers) {
         if (streamer->get_exchange()=="cme" & streamer->get_instrument()==market->get_instrument()) {
-            if (typeid(market)==typeid(MarketTrade)) {
+            if (typeid(*market)==typeid(MarketTrade)) {
                 this->logger->log_info("StreamerContainer",fmt::format("Setting trade source id to {}: Pointing to {} trade_source_id={}",streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
                 streamer->set_trade_source_node_id(market->get_node_id());
                 return;
-            }else if (typeid(market)==typeid(MarketOrderBook)) {
-                this->logger->log_info("StreamerContainer",fmt::format("Setting order book source id to {}: Pointing to {} trade_source_id={}",streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
+            }else if (typeid(*market)==typeid(MarketOrderBook)) {
+                this->logger->log_info("StreamerContainer",fmt::format("Setting order book source id to {}: Pointing to {} order_book_source_node_id={}",streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
                 streamer->set_order_book_source_node_id(market->get_node_id());
                 return;
             }
@@ -121,7 +121,7 @@ void StreamerContainer::add_cme_streamer(Market *market) {
         new_streamer->set_trade_source_node_id(market->get_node_id());
         this->market_streamers.push_back(new_streamer);
     }else if (typeid(*market)==typeid(MarketOrderBook)) {
-        this->logger->log_info("StreamerContainer",fmt::format("Setting order book source id to {}: Pointing to {} trade_source_id={}",new_streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
+        this->logger->log_info("StreamerContainer",fmt::format("Setting order book source id to {}: Pointing to {} order_book_source_node_id={}",new_streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
         new_streamer->set_order_book_source_node_id(market->get_node_id());
         this->market_streamers.push_back(new_streamer);
     }
@@ -135,7 +135,7 @@ void StreamerContainer::register_heartbeat_source(HeartBeat* heart_beat) {
     HeartBeatStreamer* new_streamer = new HeartBeatStreamer(heart_beat->get_frequency());
     this->logger->log_info("StreamerContainer",fmt::format("Creating new streamer : {}",new_streamer->get_name()));
     new_streamer->set_heartbeat_source_node_id(heart_beat->get_node_id());
-    this->logger->log_info("StreamerContainer",fmt::format("Setting heartbeat source id to {}: Pointing to {} trade_source_id={}",new_streamer->get_name(),heart_beat->get_name(),std::to_string(heart_beat->get_node_id())));
+    this->logger->log_info("StreamerContainer",fmt::format("Setting heartbeat source id to {}: Pointing to {} heartbeat_source_node_id={}",new_streamer->get_name(),heart_beat->get_name(),std::to_string(heart_beat->get_node_id())));
     this->heartbeat_streamers.push_back(new_streamer);
 }
 
@@ -148,7 +148,8 @@ void StreamerContainer::register_market_source(Market *market) {
     }
 }
 
-
+// template <typename Derived>
+// void StreamerContainer::register_source(SourceNode<Derived>* source_node) {
 void StreamerContainer::register_source(SourceNode* source_node) {
     if (source_node->get_node_id()==0) {
         throw std::runtime_error(fmt::format("Error in register_source,cannot register source node = {}, the node is not attached to a graph",source_node->get_name()));

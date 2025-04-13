@@ -8,20 +8,23 @@
 #include <map>
 #include <vector>
 
-#include "HeartBeat.h"
 #include "../../Graph/Event.h"
+#include "../Base/HeartBeat.h"
+
 #include "Node.h"
 
 
 using namespace std;
 using namespace fmt;
 
-class Market:public SourceNode {
+
+class Market:public virtual SourceNode {
+// class Market:public virtual SourceNode<Market> {
 
 public:
     virtual ~Market() = default;
     Market();
-    Market(const string& name,const string& instrument,const string& exchange);
+    Market(const string& instrument,const string& exchange); // No only default
 
 
     string get_instrument();
@@ -35,44 +38,22 @@ protected:
 };
 
 
-class MarketTrade:public Market {
-public:
-    MarketTrade();
-    ~MarketTrade() override = default;
-    MarketTrade(const string& instrument,const string& exchange);
-
-    int get_side();
-    double get_trade_price();
-    double get_base_quantity();
-    double get_quote_quantity();
-
-    bool check_trade();
-    void update_event(Trade* trade);
-    void update() override;
 
 
-protected:
-    int side;
-    double trade_price;
-    double base_quantity;
-
-
-};
-
-
-
-class MarketOrderBook:public Market {
+class MarketOrderBook:public Market,public ChildNode  {
     public:
     MarketOrderBook();
     ~MarketOrderBook() override = default;
     MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
+    MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value,HeartBeat* heart_beat_node);
 
     map<string,vector<double>> get_data();
     int get_depth();
     double get_tick_value();
 
     bool check_snapshot();
-    void update_event(OrderBookSnapshot* order_book_snapshot);
+    void on_event(Event* event) override;
+    // void handle(OrderBookSnapshot& event) override;
     void update() override;
 
     double ask_price(const int& i) const;
@@ -110,5 +91,31 @@ class MarketOrderBook:public Market {
 
 
 };
+
+
+class MarketTrade:public Market{
+public:
+    MarketTrade();
+    ~MarketTrade() override = default;
+    MarketTrade(const string& instrument,const string& exchange);
+
+    int get_side();
+    double get_trade_price();
+    double get_base_quantity();
+    double get_quote_quantity();
+
+    bool check_trade();
+    // void handle(Trade& trade) override;
+    void on_event(Event* event) override;
+
+
+protected:
+    int side;
+    double trade_price;
+    double base_quantity;
+
+
+};
+
 
 #endif //MARKET_H

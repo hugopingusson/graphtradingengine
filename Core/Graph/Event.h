@@ -12,6 +12,10 @@
 
 using namespace std;
 
+// template <typename DerivedHandler>
+// class EventHandler;
+
+
 class Event {
     public:
     Event();
@@ -21,6 +25,10 @@ class Event {
     [[nodiscard]] int64_t get_last_streamer_in_timestamp() const;
     [[nodiscard]] int get_source_id_trigger() const;
 
+    // template<typename HandlerType>
+    // void dispatchTo(HandlerType& handler) {
+    //     static_cast<HandlerType&>(handler).handle(*this);
+    // }
 
 
     protected:
@@ -38,6 +46,11 @@ class HeartBeatEvent : public Event {
 
     double get_frequency() const;
 
+    // template<typename HandlerType>
+    // void dispatchTo(HandlerType& handler) {
+    //     static_cast<HandlerType&>(handler).handle(*this);
+    // }
+
     protected:
     double frequency;
 };
@@ -50,6 +63,11 @@ class MarketEvent : public Event {
 
     [[nodiscard]] int64_t get_last_order_gateway_in_timestamp() const;
     [[nodiscard]] int64_t get_last_capture_server_in_timestamp() const;
+
+    // template<typename HandlerType>
+    // void dispatchTo(HandlerType& handler) {
+    //     static_cast<HandlerType&>(handler).handle(*this);
+    // }
 
     protected:
     int64_t last_order_gateway_in_timestamp;
@@ -66,8 +84,16 @@ class OrderBookSnapshot : public MarketEvent {
 
     [[nodiscard]] map<string,vector<double>> get_data() const;
 
+    // template<typename HandlerType>
+    // void dispatchTo(HandlerType& handler) {
+    //     static_cast<HandlerType&>(handler).handle(*this);
+    // }
+
     protected:
     map<string,vector<double>> data;
+
+
+
 };
 
 class Trade : public MarketEvent {
@@ -79,6 +105,11 @@ class Trade : public MarketEvent {
     int get_side() const;
     double get_trade_price() const;
     double get_base_quantity() const;
+
+    // template<typename HandlerType>
+    // void dispatchTo(HandlerType& handler) {
+    //     static_cast<HandlerType&>(handler).handle(*this);
+    // }
 
     protected:
     int side;
