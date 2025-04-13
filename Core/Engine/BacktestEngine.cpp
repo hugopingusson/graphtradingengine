@@ -48,3 +48,54 @@ void BacktestEngine::initialize() {
 
 }
 
+
+
+
+// void BacktestEngine::run() {
+//
+//     const std::vector<std::string>& file_paths;
+//     const std::string& output_path;
+//
+//     std::vector<StreamCursor> sources;
+//     std::priority_queue<HeapItem, std::vector<HeapItem>, std::greater<>> min_heap;
+//
+//     // Open all files and load the first row from each
+//     for (size_t i = 0; i < file_paths.size(); ++i) {
+//         sources.emplace_back(file_paths[i], i);
+//         if (sources.back().is_good()) {
+//             min_heap.push({ sources.back().current, i });
+//         }
+//     }
+//
+//     // std::ofstream output(output_path, std::ios::binary);
+//     // if (!output.is_open()) {
+//     //     throw std::runtime_error("Failed to open output file: " + output_path);
+//     // }
+//
+//     while (!min_heap.empty()) {
+//         HeapItem smallest = min_heap.top();
+//         min_heap.pop();
+//
+//         // Write the smallest OrderBookSnapshot to output
+//         output.write(reinterpret_cast<const char*>(&smallest.row), sizeof(OrderBookSnapshot));
+//
+//         // Advance the corresponding stream and reinsert
+//         size_t id = smallest.file_id;
+//         if (sources[id].advance()) {
+//             min_heap.push({ sources[id].current, id });
+//         }
+//     }
+//
+//     // output.close();
+// }
+
+
+
+
+
+
+
+
+
+
+

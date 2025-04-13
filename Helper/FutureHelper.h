@@ -25,7 +25,6 @@ class FutureHelper {
     public:
     // FutureHelper();
     explicit FutureHelper(const std::string& pair);
-
     static std::map<int,boost::gregorian::date> get_roll_date(const int& year,const std::string& schema);
     std::string get_liquid_contract(const std::string& date);
 

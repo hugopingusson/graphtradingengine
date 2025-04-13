@@ -125,9 +125,9 @@ double MarketOrderBook::cumulative_bid_amount(const int& i) const {
 }
 
 
-// void MarketOrderBook::handle(OrderBookSnapshot& order_book_snapshot) {
+// void MarketOrderBook::handle(OrderBookSnapshotEvent& order_book_snapshot) {
 void MarketOrderBook::on_event(Event* event) {
-    OrderBookSnapshot* order_book_snapshot = dynamic_cast<OrderBookSnapshot*>(event);
+    OrderBookSnapshotEvent* order_book_snapshot = dynamic_cast<OrderBookSnapshotEvent*>(event);
 	this->last_streamer_in_timestamp = order_book_snapshot->get_last_streamer_in_timestamp();
     this->last_capture_server_in_timestamp = order_book_snapshot->get_last_capture_server_in_timestamp();
     this->last_order_gateway_in_timestamp = order_book_snapshot->get_last_order_gateway_in_timestamp();

@@ -3,14 +3,14 @@
 //
 
 
-#include "DataReader.h"
+#include "ParquetDataReader.h"
 
-DataReader::DataReader():database_root("/media/hugo/T7/market_data/databento/mbp10"){};
-DataReader::DataReader(const string& database_root):database_root(database_root){};
+ParquetDataReader::ParquetDataReader():database_root("/media/hugo/T7/market_data/databento/mbp10"){};
+ParquetDataReader::ParquetDataReader(const string& database_root):database_root(database_root){};
 
 
 
-std::shared_ptr<arrow::Table> DataReader::get_cme_market_data_table(const string& ticker,const string& date) {
+std::shared_ptr<arrow::Table> ParquetDataReader::get_cme_market_data_table(const string& ticker,const string& date) {
 
     FutureHelper future_helper=FutureHelper(ticker);
     string liquid_contract = future_helper.get_liquid_contract(date);

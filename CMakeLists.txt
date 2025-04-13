@@ -13,8 +13,8 @@ include_directories(${Boost_INCLUDE_DIRS})
 
 
 add_executable(GraphTradingEngine main.cpp
-        DataReader/DataReader.h
-        DataReader/DataReader.cpp
+        Data/DataReader/ParquetDataReader.h
+        Data/DataReader/ParquetDataReader.cpp
         Helper/FutureHelper.cpp
         Helper/FutureHelper.h
         Helper/TimeHelper.cpp
@@ -42,6 +42,9 @@ add_executable(GraphTradingEngine main.cpp
         Core/Node/Base/HeartBeat.cpp
         Core/Node/Base/HeartBeat.h
         Core/Graph/EventHandler.h
+        Data/DataStructure/DataStructure.h
+        Helper/DataBaseHelper.cpp
+        Helper/DataBaseHelper.h
 )
 
 

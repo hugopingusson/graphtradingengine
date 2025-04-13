@@ -21,39 +21,81 @@ class Streamer {
     public:
     virtual ~Streamer() = default;
     Streamer();
-
     virtual string get_name()=0;
-
 
 
 };
 
 
-
-
-class MarketStreamer : public Streamer {
+class MarketStreamer :public Streamer {
     public:
     virtual ~MarketStreamer() = default;
     MarketStreamer();
-    MarketStreamer(const string &instrument, const string &exchange,const int& trade_source_node_id,const int& order_book_source_node_id);
     MarketStreamer(const string &instrument, const string &exchange);
 
     string get_instrument();
     string get_exchange();
 
-    void set_order_book_source_node_id(const int& order_book_source_node_id);
-    void set_trade_source_node_id(const int& trade_source_node_id);
-
-    int get_order_book_source_node_id();
-    int get_trade_source_node_id();
 
     protected:
     string exchange;
     string instrument;
-    int order_book_source_node_id;
-    int trade_source_node_id;
 
 };
+
+class OrderBookStreamer :public MarketStreamer {
+    public:
+    virtual ~OrderBookStreamer() = default;
+    OrderBookStreamer();
+
+    void set_order_book_source_node_id(const int& order_book_source_node_id);
+    int get_order_book_source_node_id();
+
+    protected:
+    int order_book_source_node_id;
+};
+
+class TradeStreamer :public MarketStreamer {
+public:
+    virtual ~TradeStreamer() = default;
+    TradeStreamer();
+
+    void set_trade_source_node_id(const int& trade_source_node_id);
+    int get_trade_source_node_id();
+
+protected:
+    int trade_source_node_id;
+};
+
+
+class FullMarketPictureStreamer :public OrderBookStreamer,public TradeStreamer {
+    public:
+    virtual ~FullMarketPictureStreamer() = default;
+    FullMarketPictureStreamer();
+};
+
+
+// class BackTestStreamer {
+//     std::ifstream file;
+//     OrderBookSnapshot current;
+//     size_t file_id;
+//
+//     StreamCursor(const std::string& path, size_t id) : file_id(id) {
+//         file.open(path, std::ios::binary);
+//         advance();
+//     }
+//
+//     bool advance() {
+//         file.read(reinterpret_cast<char*>(&current), sizeof(OrderBookSnapshot));
+//         return file.gcount() == sizeof(OrderBookSnapshot);
+//     }
+//
+//     bool is_good() const {
+//         return file.good();
+//     }
+// };
+
+
 
 
 class HeartBeatStreamer : public Streamer {
@@ -75,6 +117,8 @@ class HeartBeatStreamer : public Streamer {
 
 
 
+
+
 class CmeStreamer : public MarketStreamer {
     public:
     CmeStreamer();
@@ -87,6 +131,7 @@ class CmeStreamer : public MarketStreamer {
 
 
 };
+
 
 class StreamerContainer {
     public:

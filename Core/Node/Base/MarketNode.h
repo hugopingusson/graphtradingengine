@@ -53,7 +53,7 @@ class MarketOrderBook:public Market,public ChildNode  {
 
     bool check_snapshot();
     void on_event(Event* event) override;
-    // void handle(OrderBookSnapshot& event) override;
+    // void handle(OrderBookSnapshotEvent& event) override;
     void update() override;
 
     double ask_price(const int& i) const;

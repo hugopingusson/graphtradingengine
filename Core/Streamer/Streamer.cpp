@@ -11,9 +11,8 @@ Streamer::Streamer(){};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MarketStreamer::MarketStreamer():trade_source_node_id(),order_book_source_node_id(){}
-MarketStreamer::MarketStreamer(const string &instrument, const string &exchange):trade_source_node_id(),order_book_source_node_id(),exchange(exchange),instrument(instrument) {}
-MarketStreamer::MarketStreamer(const string &instrument, const string &exchange,const int& trade_source_node_id,const int& order_book_source_node_id):exchange(exchange),instrument(instrument),trade_source_node_id(trade_source_node_id),order_book_source_node_id(order_book_source_node_id) {}
+MarketStreamer::MarketStreamer(){}
+MarketStreamer::MarketStreamer(const string &instrument, const string &exchange):exchange(exchange),instrument(instrument) {}
 
 string MarketStreamer::get_instrument() {
     return this->instrument;
@@ -23,22 +22,7 @@ string MarketStreamer::get_exchange() {
     return this->exchange;
 }
 
-int MarketStreamer::get_order_book_source_node_id() {
-    return this->order_book_source_node_id;
-}
 
-int MarketStreamer::get_trade_source_node_id() {
-    return this->trade_source_node_id;
-}
-
-void MarketStreamer::set_order_book_source_node_id(const int& order_book_source_node_id) {
-    this->order_book_source_node_id = order_book_source_node_id;
-}
-
-
-void MarketStreamer::set_trade_source_node_id(const int& trade_source_node_id) {
-    this->trade_source_node_id = trade_source_node_id;
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -60,6 +44,31 @@ int HeartBeatStreamer::get_target_source_node_id() {
 void HeartBeatStreamer::set_heartbeat_source_node_id(const int &heartbeat_source_node_id) {
     this->heartbeat_source_node_id = heartbeat_source_node_id;
 }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+OrderBookStreamer::OrderBookStreamer():order_book_source_node_id() {}
+int OrderBookStreamer::get_order_book_source_node_id() {
+    return this->order_book_source_node_id;
+}
+void OrderBookStreamer::set_order_book_source_node_id(const int& order_book_source_node_id) {
+    this->order_book_source_node_id = order_book_source_node_id;
+}
+
+TradeStreamer::TradeStreamer():trade_source_node_id() {}
+
+int TradeStreamer::get_trade_source_node_id() {
+    return this->trade_source_node_id;
+}
+
+void TradeStreamer::set_trade_source_node_id(const int& trade_source_node_id) {
+    this->trade_source_node_id = trade_source_node_id;
+}
+
+
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

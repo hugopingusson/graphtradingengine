@@ -7,7 +7,6 @@
 
 #include <regex>
 
-#include "../../DataReader/DataReader.h"
 #include "../Node/Base/Node.h"
 #include "../Node/Base/MarketNode.h"
 #include "../Streamer/Streamer.h"
@@ -26,6 +25,8 @@ class BacktestEngine {
 
     void initialize();
     void build_streamer_container();
+
+    void run();
 
     protected:
     Graph* graph;

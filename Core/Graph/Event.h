@@ -9,6 +9,7 @@
 #include <map>
 #include <vector>
 
+#include "../../Data/DataStructure/DataStructure.h"
 
 using namespace std;
 
@@ -59,10 +60,10 @@ class MarketEvent : public Event {
     public:
     MarketEvent();
     ~MarketEvent() override =default;
-    MarketEvent(const int64_t& last_order_gateway_in_timestamp,const int64_t& last_capture_server_in_timestamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger);
+    // MarketEvent(const int64_t& last_order_gateway_in_timestamp,const int64_t& last_capture_server_in_timestamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger);
+    MarketEvent(const MarketTimeStamp& market_time_stamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger);
 
-    [[nodiscard]] int64_t get_last_order_gateway_in_timestamp() const;
-    [[nodiscard]] int64_t get_last_capture_server_in_timestamp() const;
+    [[nodiscard]] MarketTimeStamp get_last_market_time_stamp() const;
 
     // template<typename HandlerType>
     // void dispatchTo(HandlerType& handler) {
@@ -70,19 +71,22 @@ class MarketEvent : public Event {
     // }
 
     protected:
-    int64_t last_order_gateway_in_timestamp;
-    int64_t last_capture_server_in_timestamp;
+    // int64_t last_order_gateway_in_timestamp;
+    // int64_t last_capture_server_in_timestamp;
+
+    MarketTimeStamp market_time_stamp;
+
 };
 
 
 
-class OrderBookSnapshot : public MarketEvent {
+class OrderBookSnapshotEvent : public MarketEvent {
     public:
-    OrderBookSnapshot();
-    ~OrderBookSnapshot() override =default;
-    OrderBookSnapshot(const int64_t& last_order_gateway_in_timestamp,const int64_t& last_capture_server_in_timestamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const map<string,vector<double>>& data);
+    OrderBookSnapshotEvent();
+    ~OrderBookSnapshotEvent() override =default;
+    OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const OrderBookSnapshotData& order_book_snapshot_data);
 
-    [[nodiscard]] map<string,vector<double>> get_data() const;
+    [[nodiscard]] OrderBookSnapshotData get_order_book_snapshot_data() const;
 
     // template<typename HandlerType>
     // void dispatchTo(HandlerType& handler) {
@@ -90,7 +94,8 @@ class OrderBookSnapshot : public MarketEvent {
     // }
 
     protected:
-    map<string,vector<double>> data;
+    // map<string,vector<double>> data;
+    OrderBookSnapshotData order_book_snapshot_data;
 
 
 
@@ -100,7 +105,7 @@ class Trade : public MarketEvent {
     public:
     Trade();
     ~Trade() override =default;
-    Trade(const int64_t& last_order_gateway_in_timestamp,const int64_t& last_capture_server_in_timestamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const int& side,const double& trade_price,const double& base_quantity);
+    Trade(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const int& side,const double& trade_price,const double& base_quantity);
 
     int get_side() const;
     double get_trade_price() const;
