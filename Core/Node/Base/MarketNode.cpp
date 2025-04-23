@@ -28,7 +28,7 @@ MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchang
 
 
 
-map<string,vector<double>> MarketOrderBook::get_data() {
+OrderBookSnapshotData MarketOrderBook::get_data() {
     return this->data;
 }
 
@@ -42,19 +42,19 @@ int MarketOrderBook::get_depth() {
 
 
 double MarketOrderBook::ask_size(const int& i) const {
-    return data.at("ask_size").at(i);
+    return data.ask_size[i];
 }
 
 double MarketOrderBook::ask_price(const int& i) const {
-    return data.at("ask_price").at(i);
+    return data.ask_price[i];
 }
 
 double MarketOrderBook::bid_size(const int& i) const {
-    return data.at("bid_size").at(i);
+    return data.bid_size[i];
 }
 
 double MarketOrderBook::bid_price(const int& i) const {
-    return data.at("bid_price").at(i);
+    return data.bid_price[i];
 }
 
 
@@ -129,9 +129,9 @@ double MarketOrderBook::cumulative_bid_amount(const int& i) const {
 void MarketOrderBook::on_event(Event* event) {
     OrderBookSnapshotEvent* order_book_snapshot = dynamic_cast<OrderBookSnapshotEvent*>(event);
 	this->last_streamer_in_timestamp = order_book_snapshot->get_last_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = order_book_snapshot->get_last_capture_server_in_timestamp();
-    this->last_order_gateway_in_timestamp = order_book_snapshot->get_last_order_gateway_in_timestamp();
-    this->data = order_book_snapshot->get_data();
+    this->last_capture_server_in_timestamp = order_book_snapshot->get_last_market_timestamp().capture_server_in_timestamp;
+    this->last_order_gateway_in_timestamp = order_book_snapshot->get_last_market_timestamp().order_gateway_in_timestamp;
+    this->data = order_book_snapshot->get_order_book_snapshot_data();
 
     if (!this->check_snapshot()) {
       this->valid = false;
@@ -210,8 +210,8 @@ double MarketTrade::get_quote_quantity() {
 void MarketTrade::on_event(Event* event) {
     Trade* trade = dynamic_cast<Trade*>(event);
     this->last_streamer_in_timestamp = trade->get_last_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = trade->get_last_capture_server_in_timestamp();
-    this->last_order_gateway_in_timestamp = trade->get_last_order_gateway_in_timestamp();
+    this->last_capture_server_in_timestamp = trade->get_last_market_timestamp().capture_server_in_timestamp;
+    this->last_order_gateway_in_timestamp = trade->get_last_market_timestamp().order_gateway_in_timestamp;
 
     this->side = trade->get_side();
     this->trade_price = trade->get_trade_price();

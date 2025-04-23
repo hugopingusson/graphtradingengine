@@ -10,7 +10,7 @@
 
 #include "../../Graph/Event.h"
 #include "../Base/HeartBeat.h"
-
+#include "../../../Data/DataStructure/DataStructure.h"
 #include "Node.h"
 
 
@@ -47,7 +47,7 @@ class MarketOrderBook:public Market,public ChildNode  {
     MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
     MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value,HeartBeat* heart_beat_node);
 
-    map<string,vector<double>> get_data();
+    OrderBookSnapshotData get_data();
     int get_depth();
     double get_tick_value();
 
@@ -82,7 +82,7 @@ class MarketOrderBook:public Market,public ChildNode  {
 
 
     protected:
-    map<string,vector<double>> data;
+    OrderBookSnapshotData data;
     int depth;
     double tick_value;
     HeartBeat* heart_beat_node;

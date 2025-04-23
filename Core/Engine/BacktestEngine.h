@@ -21,17 +21,17 @@ class BacktestEngine {
 
     Graph* get_graph();
     Logger* get_logger();
-    StreamerContainer get_streamer_container();
+    BackTestStreamerContainer get_streamer_container();
 
     void initialize();
     void build_streamer_container();
 
-    void run();
+    void run(const string& date);
 
     protected:
     Graph* graph;
     Logger* logger;
-    StreamerContainer streamer_container;
+    BackTestStreamerContainer streamer_container;
 
 };
 

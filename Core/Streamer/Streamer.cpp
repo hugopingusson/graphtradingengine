@@ -6,6 +6,8 @@
 
 #include <math.h>
 
+#include "../../Helper/DataBaseHelper.h"
+
 
 Streamer::Streamer(){};
 
@@ -26,29 +28,10 @@ string MarketStreamer::get_exchange() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-HeartBeatStreamer::HeartBeatStreamer():frequency(),heartbeat_source_node_id(){};
-HeartBeatStreamer::HeartBeatStreamer(const double& frequency):frequency(frequency),heartbeat_source_node_id(){};
-
-string HeartBeatStreamer::get_name() {
-    return fmt::format("HeartBeatStreamer(frequency={})",std::to_string(frequency));
-}
-
-double HeartBeatStreamer::get_frequency() {
-    return this->frequency;
-}
-
-int HeartBeatStreamer::get_target_source_node_id() {
-    return this->heartbeat_source_node_id;
-}
-
-void HeartBeatStreamer::set_heartbeat_source_node_id(const int &heartbeat_source_node_id) {
-    this->heartbeat_source_node_id = heartbeat_source_node_id;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 OrderBookStreamer::OrderBookStreamer():order_book_source_node_id() {}
+// OrderBookStreamer::OrderBookStreamer(const string &instrument, const string &exchange):MarketStreamer(instrument,exchange),order_book_source_node_id() {}
+
+
 int OrderBookStreamer::get_order_book_source_node_id() {
     return this->order_book_source_node_id;
 }
@@ -56,7 +39,12 @@ void OrderBookStreamer::set_order_book_source_node_id(const int& order_book_sour
     this->order_book_source_node_id = order_book_source_node_id;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TradeStreamer::TradeStreamer():trade_source_node_id() {}
+// TradeStreamer::TradeStreamer(const string &instrument, const string &exchange):MarketStreamer(instrument,exchange),trade_source_node_id() {}
+
 
 int TradeStreamer::get_trade_source_node_id() {
     return this->trade_source_node_id;
@@ -66,115 +54,186 @@ void TradeStreamer::set_trade_source_node_id(const int& trade_source_node_id) {
     this->trade_source_node_id = trade_source_node_id;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+BacktestStreamer::BacktestStreamer():id(){}
+
+void BacktestStreamer::set_id(const size_t &id) {
+    this->id = id;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+DatabaseBacktestStreamer::DatabaseBacktestStreamer():file(),current_market_by_price_snapshot() {}
+DatabaseBacktestStreamer::DatabaseBacktestStreamer(const string &instrument, const string &exchange):MarketStreamer(instrument,exchange),current_market_by_price_snapshot() {}
+
+string DatabaseBacktestStreamer::route_streamer(const std::string& date) {
+    DataBaseHelper databe_base_helper = DataBaseHelper();
+    string data_path = databe_base_helper.get_data_path(date,this->instrument,this->exchange);
+    file.open(data_path, std::ios::binary);
+    advance();
+    return data_path;
+}
+
+bool DatabaseBacktestStreamer::advance() {
+    file.read(reinterpret_cast<char*>(&current_market_by_price_snapshot), sizeof(MarketByPriceSnapshot));
+    return file.gcount() == sizeof(MarketByPriceSnapshot);
+}
+
+
+bool DatabaseBacktestStreamer::is_good() const {
+    return file.good();
+}
+
+string DatabaseBacktestStreamer::get_name() {
+    return fmt::format("DatabaseBacktestStreamer(instrument={},exchange={})",this->instrument,this->exchange);
+}
 
 
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-CmeStreamer::CmeStreamer():MarketStreamer() {}
-CmeStreamer::CmeStreamer(const string &instrument, const string &exchange):MarketStreamer(instrument,exchange){};
-CmeStreamer::CmeStreamer(const string &instrument, const string &exchange,const int& trade_source_node,const int& order_book_source_node):MarketStreamer(instrument,exchange,trade_source_node,order_book_source_node) {}
+HeartBeatBackTestStreamer::HeartBeatBackTestStreamer():frequency(),heartbeat_source_node_id(){};
+HeartBeatBackTestStreamer::HeartBeatBackTestStreamer(const double& frequency):frequency(frequency),heartbeat_source_node_id(){};
 
-string CmeStreamer::get_name() {
-    return fmt::format("CmeStreamer(instrument={},exchange={})",this->instrument,this->exchange);
+string HeartBeatBackTestStreamer::get_name() {
+    return fmt::format("HeartBeatBackTestStreamer(frequency={})",std::to_string(frequency));
 }
+
+double HeartBeatBackTestStreamer::get_frequency() {
+    return this->frequency;
+}
+
+int HeartBeatBackTestStreamer::get_target_source_node_id() {
+    return this->heartbeat_source_node_id;
+}
+
+void HeartBeatBackTestStreamer::set_heartbeat_source_node_id(const int &heartbeat_source_node_id) {
+    this->heartbeat_source_node_id = heartbeat_source_node_id;
+}
+
+bool HeartBeatBackTestStreamer::advance() {
+    return true;
+}
+
+bool HeartBeatBackTestStreamer::is_good() const {
+    return true;
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-StreamerContainer::StreamerContainer():logger(nullptr){}
-StreamerContainer::StreamerContainer(Logger* logger):logger(logger){}
 
-StreamerContainer::~StreamerContainer() {
-    this->logger->log_info("StreamerContainer","Deleting streamers starts");
-
-    for (auto& market_streamer : market_streamers) {
-        this->logger->log_info("StreamerContainer",fmt::format("Deleting market streamer: {}",market_streamer->get_name()));
-        delete market_streamer;
-    }
-    for (auto& heartbeat_streamer : heartbeat_streamers) {
-        this->logger->log_info("StreamerContainer",fmt::format("Deleting heartbeat streamer: {}",heartbeat_streamer->get_name()));
-        delete heartbeat_streamer;
-    }
-}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+BackTestStreamerContainer::BackTestStreamerContainer():logger(nullptr),max_id(),streamers(){}
+BackTestStreamerContainer::BackTestStreamerContainer(Logger* logger):logger(logger),max_id(),streamers(){}
 
-void StreamerContainer::add_cme_streamer(Market* market) {
-    for (auto & streamer : market_streamers) {
-        if (streamer->get_exchange()=="cme" & streamer->get_instrument()==market->get_instrument()) {
-            if (typeid(*market)==typeid(MarketTrade)) {
-                this->logger->log_info("StreamerContainer",fmt::format("Setting trade source id to {}: Pointing to {} trade_source_id={}",streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
-                streamer->set_trade_source_node_id(market->get_node_id());
-                return;
-            }else if (typeid(*market)==typeid(MarketOrderBook)) {
-                this->logger->log_info("StreamerContainer",fmt::format("Setting order book source id to {}: Pointing to {} order_book_source_node_id={}",streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
-                streamer->set_order_book_source_node_id(market->get_node_id());
-                return;
-            }
-            else {
-                throw std::runtime_error(fmt::format("StreamerContainer::register_cme_streamer: unknown market type = {}",market->get_name()));
-            }
-        }
-    }
-
-
-    CmeStreamer* new_streamer = new CmeStreamer(market->get_instrument(),market->get_exchange());
-    this->logger->log_info("StreamerContainer",fmt::format("Creating new streamer : {}",new_streamer->get_name()));
-
-    if (typeid(*market)==typeid(MarketTrade)) {
-        this->logger->log_info("StreamerContainer",fmt::format("Setting trade source id to {}: Pointing to {} trade_source_id={}",new_streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
-        new_streamer->set_trade_source_node_id(market->get_node_id());
-        this->market_streamers.push_back(new_streamer);
-    }else if (typeid(*market)==typeid(MarketOrderBook)) {
-        this->logger->log_info("StreamerContainer",fmt::format("Setting order book source id to {}: Pointing to {} order_book_source_node_id={}",new_streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
-        new_streamer->set_order_book_source_node_id(market->get_node_id());
-        this->market_streamers.push_back(new_streamer);
-    }
-    else {
-        throw std::runtime_error(fmt::format("StreamerContainer::register_cme_streamer: unknown market type = {}",market->get_name()));
-    }
-
-}
-
-void StreamerContainer::register_heartbeat_source(HeartBeat* heart_beat) {
-    HeartBeatStreamer* new_streamer = new HeartBeatStreamer(heart_beat->get_frequency());
-    this->logger->log_info("StreamerContainer",fmt::format("Creating new streamer : {}",new_streamer->get_name()));
-    new_streamer->set_heartbeat_source_node_id(heart_beat->get_node_id());
-    this->logger->log_info("StreamerContainer",fmt::format("Setting heartbeat source id to {}: Pointing to {} heartbeat_source_node_id={}",new_streamer->get_name(),heart_beat->get_name(),std::to_string(heart_beat->get_node_id())));
-    this->heartbeat_streamers.push_back(new_streamer);
-}
-
-
-void StreamerContainer::register_market_source(Market *market) {
-    if (market->get_exchange()=="cme") {
-        this->add_cme_streamer(market);
-    }else {
-        throw std::runtime_error(fmt::format("Error in register_market_source, cannot register exchange={}",market->get_instrument()));
+BackTestStreamerContainer::~BackTestStreamerContainer() {
+    this->logger->log_info("StreamerContainer","Deleting streamers");
+    for (auto& streamer : streamers) {
+        this->logger->log_info("StreamerContainer",fmt::format("Deleting order book streamer: {}",streamer->get_name()));
+        delete streamer;
     }
 }
 
-// template <typename Derived>
-// void StreamerContainer::register_source(SourceNode<Derived>* source_node) {
-void StreamerContainer::register_source(SourceNode* source_node) {
+vector<BacktestStreamer*> BackTestStreamerContainer::get_streamers() {
+    return this->streamers;
+}
+
+void BackTestStreamerContainer::register_source(SourceNode* source_node) {
     if (source_node->get_node_id()==0) {
         throw std::runtime_error(fmt::format("Error in register_source,cannot register source node = {}, the node is not attached to a graph",source_node->get_name()));
     }
 
-    // this test doesn't work
-    if (typeid(*source_node)==typeid(HeartBeat)) {
+    if (typeid(*source_node)==typeid(MarketOrderBook)) {
+        this->register_market_orderbook_source(dynamic_cast<MarketOrderBook *>(source_node));
+    }else if (typeid(*source_node)==typeid(MarketTrade)) {
+        this->register_market_trade_source(dynamic_cast<MarketTrade *>(source_node));
+    }else if (typeid(*source_node)==typeid(HeartBeat)) {
         this->register_heartbeat_source(dynamic_cast<HeartBeat*>(source_node));
-    }
-    else if (typeid(*source_node)==typeid(MarketOrderBook) | typeid(*source_node)==typeid(MarketTrade)) {
-        this->register_market_source(dynamic_cast<Market*>(source_node));
     }
     else {
         throw std::runtime_error(fmt::format("Error in register_source source = {} cannot be registered",source_node->get_name()));
     }
 }
 
+
+
+
+void BackTestStreamerContainer::register_heartbeat_source(HeartBeat* heart_beat) {
+    HeartBeatBackTestStreamer* new_streamer = new HeartBeatBackTestStreamer(heart_beat->get_frequency());
+    this->logger->log_info("StreamerContainer",fmt::format("Creating new streamer : {}",new_streamer->get_name()));
+    new_streamer->set_heartbeat_source_node_id(heart_beat->get_node_id());
+    this->max_id+=1;
+    new_streamer->set_id(this->max_id);
+    this->logger->log_info("StreamerContainer",fmt::format("Setting heartbeat source id to {}: Pointing to {} heartbeat_source_node_id={}",new_streamer->get_name(),heart_beat->get_name(),std::to_string(heart_beat->get_node_id())));
+    this->streamers.push_back(new_streamer);
+}
+
+
+
+void BackTestStreamerContainer::register_market_orderbook_source(MarketOrderBook* market) {
+    for (auto& streamer : streamers) {
+        if (typeid(*streamer)==typeid(DatabaseBacktestStreamer)) {
+
+            if (dynamic_cast<DatabaseBacktestStreamer*>(streamer)->get_instrument()==market->get_instrument() & dynamic_cast<DatabaseBacktestStreamer*>(streamer)->get_exchange()==market->get_exchange()) {
+                this->logger->log_info("StreamerContainer",fmt::format("Setting order book source id to {}: Pointing to {} order_book_source_node_id={}",streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
+                dynamic_cast<DatabaseBacktestStreamer*>(streamer)->set_order_book_source_node_id(market->get_node_id());
+                return;
+            }
+        }
+    }
+
+    DatabaseBacktestStreamer* new_streamer = new DatabaseBacktestStreamer(market->get_instrument(),market->get_exchange());
+    this->logger->log_info("StreamerContainer",fmt::format("Creating new streamer : {}",new_streamer->get_name()));
+    this->logger->log_info("StreamerContainer",fmt::format("Setting order book source id to {}: Pointing to {} order_book_source_node_id={}",new_streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
+    this->max_id+=1;
+    new_streamer->set_id(this->max_id);
+    new_streamer->set_order_book_source_node_id(market->get_node_id());
+    this->streamers.push_back(new_streamer);
+
+
+}
+
+void BackTestStreamerContainer::register_market_trade_source(MarketTrade* market) {
+    for (auto& streamer : streamers) {
+        if (typeid(*streamer)==typeid(DatabaseBacktestStreamer)) {
+
+            if (dynamic_cast<DatabaseBacktestStreamer*>(streamer)->get_instrument()==market->get_instrument() & dynamic_cast<DatabaseBacktestStreamer*>(streamer)->get_exchange()==market->get_exchange()) {
+                this->logger->log_info("StreamerContainer",fmt::format("Setting trade source id to {}: Pointing to {} trade_source_node_id={}",streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
+                dynamic_cast<DatabaseBacktestStreamer*>(streamer)->set_trade_source_node_id(market->get_node_id());
+                return;
+            }
+        }
+    }
+
+    DatabaseBacktestStreamer* new_streamer = new DatabaseBacktestStreamer(market->get_instrument(),market->get_exchange());
+    this->logger->log_info("StreamerContainer",fmt::format("Creating new streamer : {}",new_streamer->get_name()));
+    this->logger->log_info("StreamerContainer",fmt::format("Setting trade source id to {}: Pointing to {} trade_source_node_id={}",new_streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
+    this->max_id+=1;
+    new_streamer->set_id(this->max_id);
+    new_streamer->set_trade_source_node_id(market->get_node_id());
+    this->streamers.push_back(new_streamer);
+
+
+}
+
+
+
+std::vector<std::string> BackTestStreamerContainer::route_all_streamers(const string &date) {
+    std::vector<std::string> all_path;
+    for (BacktestStreamer* streamer : this->streamers) {
+        if (typeid(*streamer)==typeid(DatabaseBacktestStreamer)) {
+            all_path.push_back(dynamic_cast<DatabaseBacktestStreamer*>(streamer)->route_streamer(date));
+        }
+    }
+    return all_path;
+}
 
 

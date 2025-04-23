@@ -30,12 +30,12 @@ double HeartBeatEvent::get_frequency() const {
 
 
 
-MarketEvent::MarketEvent():Event(),market_time_stamp() {};
+MarketEvent::MarketEvent():Event(),market_timestamp() {};
 // MarketEvent::MarketEvent(const int64_t& last_order_gateway_in_timestamp,const int64_t& last_capture_server_in_timestamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger):Event(last_streamer_in_timestamp,source_id_trigger),last_order_gateway_in_timestamp(last_order_gateway_in_timestamp),last_capture_server_in_timestamp(last_capture_server_in_timestamp) {};
-MarketEvent::MarketEvent(const MarketTimeStamp& market_time_stamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger):Event(last_streamer_in_timestamp,source_id_trigger),market_time_stamp(market_time_stamp) {};
+MarketEvent::MarketEvent(const MarketTimeStamp& market_timestamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger):Event(last_streamer_in_timestamp,source_id_trigger),market_timestamp(market_timestamp) {};
 
-MarketTimeStamp MarketEvent::get_last_market_time_stamp() const {
-    return this->market_time_stamp;
+MarketTimeStamp MarketEvent::get_last_market_timestamp() const {
+    return this->market_timestamp;
 }
 
 

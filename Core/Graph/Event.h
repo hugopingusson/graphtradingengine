@@ -63,7 +63,7 @@ class MarketEvent : public Event {
     // MarketEvent(const int64_t& last_order_gateway_in_timestamp,const int64_t& last_capture_server_in_timestamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger);
     MarketEvent(const MarketTimeStamp& market_time_stamp,const int64_t& last_streamer_in_timestamp,const int& source_id_trigger);
 
-    [[nodiscard]] MarketTimeStamp get_last_market_time_stamp() const;
+    [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const;
 
     // template<typename HandlerType>
     // void dispatchTo(HandlerType& handler) {
@@ -74,7 +74,7 @@ class MarketEvent : public Event {
     // int64_t last_order_gateway_in_timestamp;
     // int64_t last_capture_server_in_timestamp;
 
-    MarketTimeStamp market_time_stamp;
+    MarketTimeStamp market_timestamp;
 
 };
 
