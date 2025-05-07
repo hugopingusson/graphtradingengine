@@ -76,8 +76,11 @@ public:
     virtual bool advance() = 0;
     virtual bool is_good() const = 0;
 
+    virtual HeapItem get_current_heap_item() =0;
+
 protected:
     size_t id;
+
 
 };
 
@@ -92,6 +95,8 @@ public:
 
     bool advance() override;
     bool is_good() const override;
+    HeapItem get_current_heap_item() override;
+    MarketByPriceSnapshot get_current_market_by_price_snapshot();
 
 protected:
     std::ifstream file;
@@ -111,10 +116,12 @@ public:
     int get_target_source_node_id();
     bool advance() override;
     bool is_good() const override;
+    HeapItem get_current_heap_item() override;
 
 protected:
     double frequency;
     int heartbeat_source_node_id;
+    MarketTimeStamp current_market_timestamp;
 };
 
 
@@ -124,14 +131,14 @@ class BackTestStreamerContainer {
     BackTestStreamerContainer(Logger* logger);
     ~BackTestStreamerContainer();
 
-    vector<BacktestStreamer*> get_streamers();
+    map<size_t,BacktestStreamer*> get_streamers();
 
     void register_source(SourceNode *source_node);
     void register_market_orderbook_source(MarketOrderBook* market);
     void register_market_trade_source(MarketTrade* market);
     void register_heartbeat_source(HeartBeat* heart_beat);
 
-    std::vector<std::string> route_all_streamers(const string& date);
+    void route_all_streamers(const string& date);
 
     // template <typename Derived>
     // void register_source(SourceNode<Derived>* source_node);
@@ -139,7 +146,7 @@ class BackTestStreamerContainer {
     protected:
     size_t max_id;
     Logger* logger;
-    vector<BacktestStreamer*> streamers;
+    map<size_t,BacktestStreamer*> streamers;
 
     // vector<HeartBeatStreamer*> heartbeat_streamers;
 

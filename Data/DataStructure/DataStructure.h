@@ -14,15 +14,16 @@
 
 
 enum Action {
-    ADD,
-    CANCEL,
-    MODIFY,
-    TRADE,
+    ADD=0,
+    CANCEL=1,
+    MODIFY=2,
+    TRADE=3,
 };
 
 enum Side {
-    BID,
-    ASK,
+    BID=0,
+    ASK=1,
+    NEUTRAL=2
 };
 
 
@@ -33,6 +34,9 @@ struct MarketTimeStamp {
 };
 
 
+struct MarketDataPoint {
+    MarketTimeStamp market_timestamp;
+};
 
 struct OrderBookSnapshotData{
     double bid_price[10];
@@ -60,33 +64,30 @@ struct TradeData {
 };
 
 #pragma pack(push, 1)
-struct OrderBookSnapshot{
-    MarketTimeStamp market_timestamp;
+struct OrderBookSnapshot: MarketDataPoint{
     OrderBookSnapshotData order_book_snapshot_data;
 };
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-struct MarketByPriceSnapshot{
-    MarketTimeStamp market_timestamp;
-    Action action;
+struct MarketByPriceSnapshot:MarketDataPoint{
+    ActionData action_data;
     OrderBookSnapshotData order_book_snapshot_data;
 };
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-struct Order{
-    MarketTimeStamp market_timestamp;
+struct Order:MarketDataPoint{
     Action action;
 };
 #pragma pack(pop)
 
 struct HeapItem {
-    MarketByPriceSnapshot row;
+    MarketTimeStamp row;
     size_t file_id;
 
     bool operator>(const HeapItem& other) const {
-        return row.market_timestamp.capture_server_in_timestamp > other.row.market_timestamp.capture_server_in_timestamp;
+        return row.capture_server_in_timestamp > other.row.capture_server_in_timestamp;
     }
 };
 

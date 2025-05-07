@@ -53,40 +53,42 @@ void BacktestEngine::initialize() {
 void BacktestEngine::run(const string& date) {
 
     this->logger->log_info("BacktestEngine","Routing streamers");
-    const std::vector<std::string>& file_paths = this->streamer_container.route_all_streamers(date);
+    this->streamer_container.route_all_streamers(date);
 
     // std::vector<StreamCursor> sources;
     std::priority_queue<HeapItem, std::vector<HeapItem>, std::greater<>> min_heap;
 
     this->logger->log_info("BacktestEngine","ENGINE RUNNING");
 
-    // // Open all files and load the first row from each
-    // for (size_t i = 0; i < file_paths.size(); ++i) {
-    //     sources.emplace_back(file_paths[i], i);
-    //     if (sources.back().is_good()) {
-    //         min_heap.push({ sources.back().current, i });
-    //     }
-    // }
-    //
-    // // std::ofstream output(output_path, std::ios::binary);
-    // // if (!output.is_open()) {
-    // //     throw std::runtime_error("Failed to open output file: " + output_path);
-    // // }
-    //
-    // while (!min_heap.empty()) {
-    //     HeapItem smallest = min_heap.top();
-    //     min_heap.pop();
-    //
-    //     // Do something
-    //
-    //     // Advance the corresponding stream and reinsert
-    //     size_t id = smallest.file_id;
-    //     if (sources[id].advance()) {
-    //         min_heap.push({ sources[id].current, id });
-    //     }
-    // }
 
-    // output.close();
+    for (auto streamer : this->streamer_container.get_streamers()) {
+        if (streamer.second->is_good()) {
+            min_heap.push(streamer.second->get_current_heap_item());
+        }
+    }
+
+    while (!min_heap.empty()) {
+        HeapItem smallest = min_heap.top();
+        min_heap.pop();
+        size_t id = smallest.file_id;
+
+        if (typeid(this->streamer_container.get_streamers()[id])==typeid(DatabaseBacktestStreamer)) {
+            if (dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id])->get_current_market_by_price_snapshot().action_data.action!=TRADE) {
+
+                int source_id_triggered=dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id])->get_trade_source_node_id();
+                MarketTimeStamp market_times_stamp= dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id])->get_current_market_by_price_snapshot().market_timestamp;
+                OrderBookSnapshotData orderbook_snapshot_data= dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id])->get_current_market_by_price_snapshot().order_book_snapshot_data;
+
+                OrderBookSnapshotEvent* new_event=new OrderBookSnapshotEvent(market_times_stamp,0,source_id_triggered,orderbook_snapshot_data);
+                this->graph->get_source_container()[source_id_triggered]->on_event(new_event);
+            }
+        }
+
+        if (this->streamer_container.get_streamers()[id]->advance()) {
+            min_heap.push(this->streamer_container.get_streamers()[id]->get_current_heap_item());
+        }
+    }
+
 }
 
 
