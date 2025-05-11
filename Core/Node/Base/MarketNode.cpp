@@ -153,29 +153,28 @@ void MarketOrderBook::update() {
 
 
 bool MarketOrderBook::check_snapshot() {
-
   if (this->ask_price(0)==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("ask price received by {} is 0, setting to invalid",this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("ask price received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
   if (this->bid_price(0)==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("bid price received by {} is 0, setting to invalid",this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("bid price received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
   if (this->ask_size(0)==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("ask size received by {} is 0, setting to invalid",this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("ask size received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
   if (this->bid_size(0)==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("bid size received by {} is 0, setting to invalid",this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("bid size received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
-  if (this->ask_price(0)>=this->bid_price(0)){
-    this->logger->log_error("MarketOrderBook",fmt::format("snapshot received by {} show ask={}>=bid={} , setting to invalid",this->name,this->ask_price(0),this->bid_price(0)));
+  if (this->bid_price(0)>=this->ask_price(0)){
+    this->logger->log_error("MarketOrderBook",fmt::format("snapshot received @ {} by {} show bid={}>=ask={} , setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name,this->bid_price(0),this->ask_price(0)));
   	return false;
   }
 
@@ -206,9 +205,9 @@ double MarketTrade::get_quote_quantity() {
 }
 
 
-// void MarketTrade::handle(Trade& trade) {
+// void MarketTrade::handle(TradeEvent& trade) {
 void MarketTrade::on_event(Event* event) {
-    Trade* trade = dynamic_cast<Trade*>(event);
+    TradeEvent* trade = dynamic_cast<TradeEvent*>(event);
     this->last_streamer_in_timestamp = trade->get_last_streamer_in_timestamp();
     this->last_capture_server_in_timestamp = trade->get_last_market_timestamp().capture_server_in_timestamp;
     this->last_order_gateway_in_timestamp = trade->get_last_market_timestamp().order_gateway_in_timestamp;

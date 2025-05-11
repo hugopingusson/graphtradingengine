@@ -55,7 +55,6 @@ void BacktestEngine::run(const string& date) {
     this->logger->log_info("BacktestEngine","Routing streamers");
     this->streamer_container.route_all_streamers(date);
 
-    // std::vector<StreamCursor> sources;
     std::priority_queue<HeapItem, std::vector<HeapItem>, std::greater<>> min_heap;
 
     this->logger->log_info("BacktestEngine","ENGINE RUNNING");
@@ -72,15 +71,39 @@ void BacktestEngine::run(const string& date) {
         min_heap.pop();
         size_t id = smallest.file_id;
 
-        if (typeid(this->streamer_container.get_streamers()[id])==typeid(DatabaseBacktestStreamer)) {
-            if (dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id])->get_current_market_by_price_snapshot().action_data.action!=TRADE) {
+        if (typeid(*this->streamer_container.get_streamers()[id])==typeid(DatabaseBacktestStreamer)) {
+            DatabaseBacktestStreamer* backtest_streamer = dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id]);
 
-                int source_id_triggered=dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id])->get_trade_source_node_id();
-                MarketTimeStamp market_times_stamp= dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id])->get_current_market_by_price_snapshot().market_timestamp;
-                OrderBookSnapshotData orderbook_snapshot_data= dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id])->get_current_market_by_price_snapshot().order_book_snapshot_data;
+            if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action!=TRADE & backtest_streamer->get_order_book_source_node_id()>0) {
 
-                OrderBookSnapshotEvent* new_event=new OrderBookSnapshotEvent(market_times_stamp,0,source_id_triggered,orderbook_snapshot_data);
-                this->graph->get_source_container()[source_id_triggered]->on_event(new_event);
+                OrderBookSnapshotEvent* new_event=new OrderBookSnapshotEvent(backtest_streamer->get_current_market_by_price_snapshot().market_timestamp,
+                    0,
+                    backtest_streamer->get_order_book_source_node_id(),
+                    backtest_streamer->get_current_market_by_price_snapshot().order_book_snapshot_data);
+
+
+                dynamic_cast<MarketOrderBook*>(this->graph->get_source_container()[backtest_streamer->get_order_book_source_node_id()])->on_event(new_event);
+
+                delete new_event;
+
+                this->graph->update(backtest_streamer->get_order_book_source_node_id());
+
+            }
+
+            if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action!=TRADE & backtest_streamer->get_trade_source_node_id()>0) {
+                TradeEvent* new_event = new TradeEvent(backtest_streamer->get_current_market_by_price_snapshot().market_timestamp,
+                    0,
+                    backtest_streamer->get_trade_source_node_id(),
+                    backtest_streamer->get_current_market_by_price_snapshot().action_data.side,
+                    backtest_streamer->get_current_market_by_price_snapshot().action_data.price,
+                    backtest_streamer->get_current_market_by_price_snapshot().action_data.base_quantity);
+
+                dynamic_cast<MarketTrade*>(this->graph->get_source_container()[backtest_streamer->get_trade_source_node_id()])->on_event(new_event);
+
+                delete new_event;
+
+                this->graph->update(backtest_streamer->get_trade_source_node_id());
+
             }
         }
 
@@ -91,46 +114,6 @@ void BacktestEngine::run(const string& date) {
 
 }
 
-
-
-// void BacktestEngine::run(const string& date) {
-//
-//
-//     const std::vector<std::string>& file_paths = this->streamer_container.route_all_streamers(date);
-//
-//     // std::vector<StreamCursor> sources;
-//     std::priority_queue<HeapItem, std::vector<HeapItem>, std::greater<>> min_heap;
-//
-//     // Open all files and load the first row from each
-//     for (size_t i = 0; i < file_paths.size(); ++i) {
-//         sources.emplace_back(file_paths[i], i);
-//         if (sources.back().is_good()) {
-//             min_heap.push({ sources.back().current, i });
-//         }
-//     }
-//
-//     // std::ofstream output(output_path, std::ios::binary);
-//     // if (!output.is_open()) {
-//     //     throw std::runtime_error("Failed to open output file: " + output_path);
-//     // }
-//
-//     while (!min_heap.empty()) {
-//         HeapItem smallest = min_heap.top();
-//         min_heap.pop();
-//
-//         // Write the smallest OrderBookSnapshot to output
-//         output.write(reinterpret_cast<const char*>(&smallest.row), sizeof(OrderBookSnapshot));
-//
-//         // Advance the corresponding stream and reinsert
-//         size_t id = smallest.file_id;
-//         if (sources[id].advance()) {
-//             min_heap.push({ sources[id].current, id });
-//         }
-//     }
-//
-//     // output.close();
-// }
-//
 
 
 

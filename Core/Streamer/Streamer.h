@@ -115,7 +115,7 @@ public:
     double get_frequency();
     int get_target_source_node_id();
     bool advance() override;
-    bool is_good() const override;
+    [[nodiscard]] bool is_good() const override;
     HeapItem get_current_heap_item() override;
 
 protected:

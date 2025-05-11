@@ -14,7 +14,7 @@ public:
     virtual void handle(Event& event) {}
     virtual void handle(MarketEvent& market_event) {}
     virtual void handle(OrderBookSnapshotEvent& order_book_snapshot) {}
-    virtual void handle(Trade& trade) {}
+    virtual void handle(TradeEvent& trade) {}
     virtual void handle(HeartBeatEvent& heart_beat_event) {}
 
     // Optionally, you can provide default handling for any event types

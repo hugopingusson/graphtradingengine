@@ -7,8 +7,7 @@
 #include <fmt/format.h>
 
 
-Mid::Mid():parent(nullptr){
-}
+Mid::Mid(){}
 
 Mid::Mid(MarketOrderBook* market) {
     this->parent=market;
@@ -16,12 +15,10 @@ Mid::Mid(MarketOrderBook* market) {
 }
 
 double Mid::compute() {
-    return this->parent->mid();
+    return dynamic_cast<MarketOrderBook*>(this->parent)->mid();
 }
 
-
-Bary::Bary():parent(nullptr){
-}
+Bary::Bary()= default;
 
 Bary::Bary(MarketOrderBook* market) {
     this->parent=market;
@@ -29,5 +26,5 @@ Bary::Bary(MarketOrderBook* market) {
 }
 
 double Bary::compute() {
-    return this->parent->bary();
+    return dynamic_cast<MarketOrderBook*>(this->parent)->bary();
 }

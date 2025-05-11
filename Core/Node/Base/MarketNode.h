@@ -105,7 +105,7 @@ public:
     double get_quote_quantity();
 
     bool check_trade();
-    // void handle(Trade& trade) override;
+    // void handle(TradeEvent& trade) override;
     void on_event(Event* event) override;
 
 

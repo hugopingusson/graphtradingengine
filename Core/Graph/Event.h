@@ -101,11 +101,11 @@ class OrderBookSnapshotEvent : public MarketEvent {
 
 };
 
-class Trade : public MarketEvent {
+class TradeEvent : public MarketEvent {
     public:
-    Trade();
-    ~Trade() override =default;
-    Trade(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const int& side,const double& trade_price,const double& base_quantity);
+    TradeEvent();
+    ~TradeEvent() override =default;
+    TradeEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const int& side,const double& trade_price,const double& base_quantity);
 
     int get_side() const;
     double get_trade_price() const;

@@ -15,7 +15,6 @@
 #include "Core/Streamer/Streamer.h"
 #include "Data/DataStructure/DataStructure.h"
 
-
 // TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 // int main() {
@@ -51,16 +50,35 @@
 
 
 int main() {
-    std::ifstream file("/media/hugo/T7/market_data/databento/mbp10_bin/6EM4/2024-05-01.bin", std::ios::binary);
-    MarketByPriceSnapshot row;
-    file.read(reinterpret_cast<char*>(&row), sizeof(MarketByPriceSnapshot));
-    while (file.read(reinterpret_cast<char*>(&row), sizeof(MarketByPriceSnapshot))) {;  // strip padding
-        std::cout << "ts: " << row.market_timestamp.capture_server_in_timestamp
-                  << ", ask: " << row.order_book_snapshot_data.ask_price[0]
-                  << ", action: " << row.action_data.base_quantity
-                  << ", bid: " << row.order_book_snapshot_data.bid_price[0] << endl;
-    }
-    std::cout << "done" << std::endl;
+    // std::ifstream file("/media/hugo/T7/market_data/databento/mbp10_bin/6EM4/2024-05-01.bin", std::ios::binary);
+    // MarketByPriceSnapshot row;
+    // file.read(reinterpret_cast<char*>(&row), sizeof(MarketByPriceSnapshot));
+    // while (file.read(reinterpret_cast<char*>(&row), sizeof(MarketByPriceSnapshot))) {;  // strip padding
+    //     std::cout << "ts: " << row.market_timestamp.capture_server_in_timestamp
+    //     << ", ask: " << row.order_book_snapshot_data.ask_price[0]
+    //     << ", action: " << row.action_data.base_quantity
+    //     << ", bid: " << row.order_book_snapshot_data.bid_price[0] << endl;
+    // }
+    // std::cout << "done" << std::endl;
+
+
+    Logger logger = Logger("MainLogger","/home/hugo/gte_logs");
+    Graph graph=Graph(&logger);
+    MarketOrderBook market=MarketOrderBook("EURUSD","cme",5,1e-5);
+    // MarketTrade market_trade = MarketTrade("EURUSD","cme");
+    // Mid mid = Mid(&market);
+    Bary bary=Bary(&market);
+    // Skew skew=Skew(&bary,&mid);
+    // graph.add_source(&market_trade);
+    graph.add_source(&market);
+    // graph.add_edge(&market,&mid);
+    graph.add_edge(&market,&bary);
+    // graph.add_edge(&bary,&skew);
+    // graph.add_edge(&mid,&skew);
+    BacktestEngine backtest_engine = BacktestEngine(&logger,&graph);
+    backtest_engine.initialize();
+    backtest_engine.run("2024-05-01");
+
     return 1;
 }// TIP See CLion help at <a
 // href="https://www.jetbrains.com/help/clion/">jetbrains.com/help/clion/</a>.

@@ -12,7 +12,7 @@
 #include <queue>
 #include <string>
 
-
+#pragma pack(push, 1)
 enum Action {
     ADD=0,
     CANCEL=1,
@@ -63,23 +63,24 @@ struct TradeData {
     double base_quantity;
 };
 
-#pragma pack(push, 1)
+
 struct OrderBookSnapshot: MarketDataPoint{
     OrderBookSnapshotData order_book_snapshot_data;
 };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
+
+
 struct MarketByPriceSnapshot:MarketDataPoint{
     ActionData action_data;
     OrderBookSnapshotData order_book_snapshot_data;
 };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
+
+
 struct Order:MarketDataPoint{
     Action action;
 };
+
 #pragma pack(pop)
 
 struct HeapItem {

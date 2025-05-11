@@ -14,10 +14,9 @@ class Mid:public MonoSignal {
     ~Mid() override = default;
     Mid(MarketOrderBook* market);
 
-    double compute();
+    double compute()override;
 
-    protected:
-    MarketOrderBook* parent;
+
 };
 
 
@@ -27,10 +26,8 @@ public:
     ~Bary() override = default;
     Bary(MarketOrderBook* market);
 
-    double compute();
+    double compute() override;
 
-protected:
-    MarketOrderBook* parent;
 };
 
 
