@@ -18,11 +18,9 @@ using namespace std;
 
 class Node {
     public:
-    virtual ~Node() = default;
-
-
     Node();
     explicit Node(const string& name);
+    virtual ~Node() = default;
     // explicit Node(const int& node_id,const string& name,Logger* main_logger);
 
 

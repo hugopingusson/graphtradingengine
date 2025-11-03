@@ -97,6 +97,7 @@ public:
     bool is_good() const override;
     HeapItem get_current_heap_item() override;
     MarketByPriceSnapshot get_current_market_by_price_snapshot();
+    MarketTimeStamp get_current_market_timestamp();
 
 protected:
     std::ifstream file;

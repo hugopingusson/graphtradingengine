@@ -76,7 +76,7 @@ void BacktestEngine::run(const string& date) {
 
             if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action!=TRADE & backtest_streamer->get_order_book_source_node_id()>0) {
 
-                OrderBookSnapshotEvent* new_event=new OrderBookSnapshotEvent(backtest_streamer->get_current_market_by_price_snapshot().market_timestamp,
+                OrderBookSnapshotEvent* new_event=new OrderBookSnapshotEvent(backtest_streamer->get_current_market_timestamp(),
                     0,
                     backtest_streamer->get_order_book_source_node_id(),
                     backtest_streamer->get_current_market_by_price_snapshot().order_book_snapshot_data);
@@ -91,7 +91,7 @@ void BacktestEngine::run(const string& date) {
             }
 
             if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action!=TRADE & backtest_streamer->get_trade_source_node_id()>0) {
-                TradeEvent* new_event = new TradeEvent(backtest_streamer->get_current_market_by_price_snapshot().market_timestamp,
+                TradeEvent* new_event = new TradeEvent(backtest_streamer->get_current_market_timestamp(),
                     0,
                     backtest_streamer->get_trade_source_node_id(),
                     backtest_streamer->get_current_market_by_price_snapshot().action_data.side,

@@ -92,7 +92,12 @@ string DatabaseBacktestStreamer::get_name() {
 }
 
 HeapItem DatabaseBacktestStreamer::get_current_heap_item() {
-    return {this->current_market_by_price_snapshot.market_timestamp,this->id};
+    return {this->current_market_by_price_snapshot.market_time_stamp,this->id};
+}
+
+
+MarketTimeStamp DatabaseBacktestStreamer::get_current_market_timestamp() {
+    return this->current_market_by_price_snapshot.market_time_stamp;
 }
 
 MarketByPriceSnapshot DatabaseBacktestStreamer::get_current_market_by_price_snapshot() {

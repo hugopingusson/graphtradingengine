@@ -34,9 +34,9 @@ struct MarketTimeStamp {
 };
 
 
-struct MarketDataPoint {
-    MarketTimeStamp market_timestamp;
-};
+// struct MarketDataPoint {
+//     MarketTimeStamp market_timestamp;
+// };
 
 struct OrderBookSnapshotData{
     double bid_price[10];
@@ -64,22 +64,25 @@ struct TradeData {
 };
 
 
-struct OrderBookSnapshot: MarketDataPoint{
+struct OrderBookSnapshot{
+    MarketTimeStamp market_time_stamp;
     OrderBookSnapshotData order_book_snapshot_data;
 };
 
 
 
-struct MarketByPriceSnapshot:MarketDataPoint{
+struct MarketByPriceSnapshot{
+    // OrderBookSnapshot order_book_snapshot;
+    MarketTimeStamp market_time_stamp;
+    OrderBookSnapshotData order_book_snapshot_data;
     ActionData action_data;
-    OrderBookSnapshotData order_book_snapshot_data;
 };
 
 
 
-struct Order:MarketDataPoint{
-    Action action;
-};
+// struct Order:MarketDataPoint{
+//     Action action;
+// };
 
 #pragma pack(pop)
 
