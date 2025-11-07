@@ -105,9 +105,9 @@ class TradeEvent : public MarketEvent {
     public:
     TradeEvent();
     ~TradeEvent() override =default;
-    TradeEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const int& side,const double& trade_price,const double& base_quantity);
+    TradeEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const Side& side,const double& trade_price,const double& base_quantity);
 
-    int get_side() const;
+    Side get_side() const;
     double get_trade_price() const;
     double get_base_quantity() const;
 
@@ -117,7 +117,7 @@ class TradeEvent : public MarketEvent {
     // }
 
     protected:
-    int side;
+    Side side;
     double trade_price;
     double base_quantity;
 

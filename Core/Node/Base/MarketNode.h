@@ -99,7 +99,7 @@ public:
     ~MarketTrade() override = default;
     MarketTrade(const string& instrument,const string& exchange);
 
-    int get_side();
+    Side get_side();
     double get_trade_price();
     double get_base_quantity();
     double get_quote_quantity();
@@ -110,7 +110,7 @@ public:
 
 
 protected:
-    int side;
+    Side side;
     double trade_price;
     double base_quantity;
 

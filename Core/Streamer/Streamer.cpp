@@ -72,7 +72,10 @@ DatabaseBacktestStreamer::DatabaseBacktestStreamer(const string &instrument, con
 string DatabaseBacktestStreamer::route_streamer(const std::string& date) {
     DataBaseHelper databe_base_helper = DataBaseHelper();
     string data_path = databe_base_helper.get_data_path(date,this->instrument,this->exchange);
-    file.open(data_path, std::ios::binary);
+    if (!filesystem::exists(data_path)) {
+        throw std::runtime_error(fmt::format("Error when routing streamer {}, bin file {} doesn't exist",this->get_name(),data_path));
+    }
+    this->file.open(data_path, std::ios::binary);
     advance();
     return data_path;
 }
@@ -84,7 +87,7 @@ bool DatabaseBacktestStreamer::advance() {
 
 
 bool DatabaseBacktestStreamer::is_good() const {
-    return file.good();
+    return this->file.good();
 }
 
 string DatabaseBacktestStreamer::get_name() {

@@ -40,7 +40,7 @@ int main() {
 
     BacktestEngine  backtest_engine = BacktestEngine(&logger,&graph);
     backtest_engine.initialize();
-    backtest_engine.run("2024-02-01");
+    backtest_engine.run("2024-04-30");
 
     cout<<"Done"<<endl;
 

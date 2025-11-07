@@ -49,13 +49,13 @@ OrderBookSnapshotData OrderBookSnapshotEvent::get_order_book_snapshot_data() con
 
 
 TradeEvent::TradeEvent():MarketEvent(),side(),trade_price(),base_quantity() {}
-TradeEvent::TradeEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const int& side,const double& trade_price,const double& base_quantity):MarketEvent(market_time_stamp,last_streamer_in_timestamp,source_id_trigger){
+TradeEvent::TradeEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const Side& side,const double& trade_price,const double& base_quantity):MarketEvent(market_time_stamp,last_streamer_in_timestamp,source_id_trigger){
     this->side=side;
     this->trade_price=trade_price;
     this->base_quantity=base_quantity;
 }
 
-int TradeEvent::get_side() const {
+Side TradeEvent::get_side() const {
     return this->side;
 }
 double TradeEvent::get_trade_price() const {

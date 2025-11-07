@@ -188,7 +188,7 @@ MarketTrade::MarketTrade():trade_price(),side(),base_quantity(){}
 MarketTrade::MarketTrade(const string &instrument, const string &exchange):Node(fmt::format("MarketTrade(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),trade_price(),side(),base_quantity(){}
 
 
-int MarketTrade::get_side() {
+Side MarketTrade::get_side() {
     return this->side;
 }
 
@@ -232,7 +232,7 @@ bool MarketTrade::check_trade() {
         return false;
     }
 
-    if (std::abs(this->side)!=1){
+    if (this->side != Side::ASK & this->side != Side::BID){
         this->logger->log_error("MarketTrade",fmt::format("side received by {} is different from 1 or -1, setting to invalid",this->name));
         return false;
     }

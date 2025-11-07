@@ -13,19 +13,9 @@
 #include <string>
 
 #pragma pack(push, 1)
-enum Action {
-    ADD=0,
-    CANCEL=1,
-    MODIFY=2,
-    TRADE=3,
-};
 
-enum Side {
-    BID=0,
-    ASK=1,
-    NEUTRAL=2
-};
-
+enum class Action : std::int32_t { ADD=0, CANCEL=1, MODIFY=2, TRADE=3 };
+enum class Side   : std::int32_t { BID=0, ASK=1, NEUTRAL=2 };
 
 struct MarketTimeStamp {
     int64_t capture_server_in_timestamp;
@@ -48,19 +38,19 @@ struct OrderBookSnapshotData{
 
 
 struct ActionData {
-    Side side;
-    Action action;
-    int layer;
-    double price;
-    double base_quantity;
+    Side side{};
+    Action action{};
+    std::int32_t layer{};      // fixe la taille
+    double price{};
+    double base_quantity{};
 };
 
 struct TradeData {
-    Side side;
-    const Action action = TRADE;
-    const int layer=0;
-    double price;
-    double base_quantity;
+    Side side{};
+    Action action{Action::TRADE};
+    std::int32_t layer{0};
+    double price{};
+    double base_quantity{};
 };
 
 
