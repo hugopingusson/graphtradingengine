@@ -65,7 +65,7 @@ void BacktestEngine::run(const string& date) {
             min_heap.push(streamer.second->get_current_heap_item());
         }
     }
-
+    cout<<"BackestEngine running..."<<endl;
     while (!min_heap.empty()) {
         HeapItem smallest = min_heap.top();
         min_heap.pop();
@@ -74,7 +74,7 @@ void BacktestEngine::run(const string& date) {
         if (typeid(*this->streamer_container.get_streamers()[id])==typeid(DatabaseBacktestStreamer)) {
             DatabaseBacktestStreamer* backtest_streamer = dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id]);
 
-            if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action!=Action::TRADE & backtest_streamer->get_order_book_source_node_id()>0) {
+            if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action!=Action::TRADE && backtest_streamer->get_order_book_source_node_id()>0) {
 
                 OrderBookSnapshotEvent* new_event=new OrderBookSnapshotEvent(backtest_streamer->get_current_market_timestamp(),
                     0,
@@ -90,7 +90,7 @@ void BacktestEngine::run(const string& date) {
 
             }
 
-            if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action==Action::TRADE & backtest_streamer->get_trade_source_node_id()>0) {
+            if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action==Action::TRADE && backtest_streamer->get_trade_source_node_id()>0) {
                 TradeEvent* new_event = new TradeEvent(backtest_streamer->get_current_market_timestamp(),
                     0,
                     backtest_streamer->get_trade_source_node_id(),
@@ -112,6 +112,7 @@ void BacktestEngine::run(const string& date) {
         }
     }
 
+    cout<<"BacktestEngine end"<<endl;
 }
 
 

@@ -91,7 +91,7 @@ double MarketOrderBook::ask_amount_at_mid(const int& i) const {
 double MarketOrderBook::cumulative_ask_size(const int& i) const {
     double size=0;
     for (int k=0;k<=i;k++) {
-        size+=this->ask_size(i);
+        size+=this->ask_size(k);
     }
 
     return size;
@@ -100,7 +100,7 @@ double MarketOrderBook::cumulative_ask_size(const int& i) const {
 double MarketOrderBook::cumulative_bid_size(const int& i) const {
     double size=0;
     for (int k=0;k<=i;k++) {
-        size+=this->bid_size(i);
+        size+=this->bid_size(k);
     }
 
     return size;
@@ -109,7 +109,7 @@ double MarketOrderBook::cumulative_bid_size(const int& i) const {
 double MarketOrderBook::cumulative_ask_amount(const int& i) const {
     double amount=0;
     for (int k=0;k<=i;k++) {
-        amount+=this->ask_amount(i);
+        amount+=this->ask_amount(k);
     }
 
     return amount;
@@ -118,7 +118,7 @@ double MarketOrderBook::cumulative_ask_amount(const int& i) const {
 double MarketOrderBook::cumulative_bid_amount(const int& i) const {
     double amount=0;
     for (int k=0;k<=i;k++) {
-        amount+=this->bid_amount(i);
+        amount+=this->bid_amount(k);
     }
 
     return amount;

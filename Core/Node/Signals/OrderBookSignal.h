@@ -21,7 +21,7 @@ class Mid:public MonoSignal {
 
 
 class Bary:public MonoSignal {
-public:
+    public:
     Bary();
     ~Bary() override = default;
     Bary(MarketOrderBook* market);
@@ -29,6 +29,24 @@ public:
     double compute() override;
 
 };
+
+
+
+class Vwap:public Quote {
+    public:
+    Vwap();
+    ~Vwap() override = default;
+    Vwap(MarketOrderBook* market,double const& size);
+
+    void update() override;
+
+    protected:
+    MarketOrderBook* market;
+    double size;
+
+};
+
+
 
 
 #endif //SIMPLE_H

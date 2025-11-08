@@ -23,15 +23,20 @@ int main() {
     MarketOrderBook market=MarketOrderBook("EURUSD","cme",5,1e-5);
     // MarketTrade market_trade = MarketTrade("EURUSD","cme");
 
-    Mid mid = Mid(&market);
-    Bary bary=Bary(&market);
+
+    Vwap vwap = Vwap(&market,350);
+
+    // Mid mid = Mid(&market);
+    // Bary bary=Bary(&market);
     // Skew skew=Skew(&bary,&mid);
 
     // graph.add_source(&market_trade);
     graph.add_source(&market);
+    graph.add_edge(&market,&vwap);
 
 
-    graph.add_edge(&market,&mid);
+
+    // graph.add_edge(&market,&mid);
     // graph.add_edge(&market,&bary);
 
     // graph.add_edge(&bary,&skew);
