@@ -5,10 +5,10 @@
 #ifndef HEARTBEAT_H
 #define HEARTBEAT_H
 
-#include "../Base/Node.h"
+#include "Node.h"
 
 // class HeartBeat : public SourceNode<HeartBeat> {
-class HeartBeat : public SourceNode {
+class HeartBeat: public Producer {
     public:
     HeartBeat();
     ~HeartBeat() override = default;

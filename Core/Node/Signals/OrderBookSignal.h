@@ -8,37 +8,37 @@
 #include "../Base/Node.h"
 #include "../Base/MarketNode.h"
 
-class Mid:public Signal {
+class Mid:public Consumer {
     public:
     Mid();
     ~Mid() override = default;
     Mid(MarketOrderBook* market);
 
-    double compute()override;
+    void compute() override;
 
 
 };
 
 
-class Bary:public Signal {
+class Bary:public Consumer {
     public:
     Bary();
     ~Bary() override = default;
     Bary(MarketOrderBook* market);
 
-    double compute() override;
+    void compute() override;
 
 };
 
 
 
-class Vwap:public Quote {
+class Vwap:public Quote, public Consumer {
     public:
     Vwap();
     ~Vwap() override = default;
     Vwap(MarketOrderBook* market,double const& size);
 
-    void update() override;
+    void compute() override;
 
     protected:
     MarketOrderBook* market;

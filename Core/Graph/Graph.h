@@ -22,11 +22,9 @@ class Graph {
     int64_t get_last_graph_latency() const;
     Logger* get_logger();
     map<int,vector<int>> get_adjacency_map();
-    map<int,ChildNode*> get_child_node_container();
-    // template <typename Derived>
-    // map<int,SourceNode<Derived>*> get_source_container();
-    map<int,SourceNode*> get_source_container();
-    map<int,ChildNode*> get_output_container();
+    map<int,Consumer*> get_child_node_container();
+    map<int,Producer*> get_source_container();
+    map<int,Consumer*> get_output_container();
     map<int,vector<int>> get_update_path();
 
     bool empty() const;

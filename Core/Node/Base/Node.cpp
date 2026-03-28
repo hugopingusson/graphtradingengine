@@ -74,18 +74,6 @@ void Node::set_node_id(const int& node_id) {
     this->node_id=node_id;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-SourceNode::SourceNode(){};
-// template <typename Derived>
-// SourceNode<Derived>::SourceNode(){};
-// SourceNode::SourceNode(const string& name):Node(name){};
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-ChildNode::ChildNode(){};
-// ChildNode::ChildNode(const string& name):Node(name){};
-// ChildNode::ChildNode(const int& node_id,const string& name,Logger* main_logger):Node(node_id,name,main_logger){};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 Quote::Quote(): ask_price(),bid_price(){};
@@ -113,35 +101,86 @@ double Quote::spread() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Signal::Signal(): parent(nullptr),value(std::nan("")){}
+SingleInputConsumer::SingleInputConsumer(): parent(nullptr),value(std::nan("")){}
 // Signal::Signal(const int& node_id,const string &name,Logger* logger):ChildNode(node_id,name,logger),value(std::nan("")) {}
 
-Signal::Signal(Node *parent) : value(std::nan("")) {
+SingleInputConsumer::SingleInputConsumer(Node *parent) : value(std::nan("")) {
     this->parent = parent;
 }
 
 
-double Signal::get_value() const {
+double SingleInputConsumer::get_value() const {
     return this->value;
 }
 
-Node* Signal::get_parent() const {
+Node* SingleInputConsumer::get_parent() const {
     return this->parent;
 }
 
-void Signal::update() {
-    if ((*this->parent).is_valid()) {
-        this->value=this->compute();
-        if (std::isnan(this->value)) {
+bool SingleInputConsumer::forward() {
+    if (this->valid) {
+        if (!this->parent->is_valid()) {
             this->valid=false;
+            return true;
         }
         else {
-            this->valid=true;
+            double last_value=this->value;
+            this->compute();
+            if (this->valid) {
+                if (last_value!=this->value) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            }
+            else {
+                return true;
+            }
         }
-    }else {
-        this->valid=false;
+    }
+    else {
+        if (!this->parent->is_valid()) {
+            return false;
+        }
+        else {
+            this->compute();
+            if (this->valid) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
     }
 }
+
+
+// if ((*this->parent).is_valid()) {
+//     if (this->valid) {
+//         double last_value=this->value;
+//         this->compute();
+//         if (this->valid) {
+//             if (this->value != last_value) {
+//                 return true;
+//             }
+//             else{
+//                 return false;
+//             }
+//         }
+//         else {
+//             return true;
+//         }
+//     }
+//     else {
+//         this->compute();
+//         if (this->valid) {
+//         }
+//     }
+// }
+//
+
+
 
 
 

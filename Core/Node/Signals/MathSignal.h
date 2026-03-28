@@ -6,12 +6,12 @@
 #define MATHNODE_H
 #include "../Base/Node.h"
 
-class Skew:public Signal{
+class Skew:public Consumer {
     public:
     Skew();
     ~Skew() override = default;
     Skew(Signal* parent1,Signal* parent2);
-    double compute() override;
+    void compute() override;
     void update() override;
 
     protected:

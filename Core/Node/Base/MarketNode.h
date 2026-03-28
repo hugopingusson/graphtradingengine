@@ -18,7 +18,7 @@ using namespace std;
 using namespace fmt;
 
 
-class Market:public virtual SourceNode {
+class Market:public virtual Producer {
 // class Market:public virtual SourceNode<Market> {
 
 public:
@@ -40,12 +40,12 @@ protected:
 
 
 
-class MarketOrderBook:public Market,public ChildNode  {
+class MarketOrderBook:public Market  {
     public:
     MarketOrderBook();
     ~MarketOrderBook() override = default;
     MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
-    MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value,HeartBeat* heart_beat_node);
+    // MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value,HeartBeat* heart_beat_node);
 
     OrderBookData get_data();
     int get_depth();
@@ -53,8 +53,6 @@ class MarketOrderBook:public Market,public ChildNode  {
 
     bool check_snapshot();
     void on_event(Event* event) override;
-    // void handle(OrderBookSnapshotEvent& event) override;
-    void update() override;
 
     double ask_price(const int& i) const;
     double ask_size(const int& i) const;
@@ -92,30 +90,30 @@ class MarketOrderBook:public Market,public ChildNode  {
 
 };
 
-
-class MarketTrade:public Market{
-public:
-    MarketTrade();
-    ~MarketTrade() override = default;
-    MarketTrade(const string& instrument,const string& exchange);
-
-    Side get_side();
-    double get_trade_price();
-    double get_base_quantity();
-    double get_quote_quantity();
-
-    bool check_trade();
-    // void handle(TradeEvent& trade) override;
-    void on_event(Event* event) override;
-
-
-protected:
-    Side side;
-    double trade_price;
-    double base_quantity;
-
-
-};
+//
+// class MarketTrade:public Market{
+// public:
+//     MarketTrade();
+//     ~MarketTrade() override = default;
+//     MarketTrade(const string& instrument,const string& exchange);
+//
+//     Side get_side();
+//     double get_trade_price();
+//     double get_base_quantity();
+//     double get_quote_quantity();
+//
+//     bool check_trade();
+//     // void handle(TradeEvent& trade) override;
+//     void on_event(Event* event) override;
+//
+//
+// protected:
+//     Side side;
+//     double trade_price;
+//     double base_quantity;
+//
+//
+// };
 
 
 #endif //MARKET_H

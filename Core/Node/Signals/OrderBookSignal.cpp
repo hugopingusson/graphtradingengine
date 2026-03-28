@@ -12,10 +12,16 @@ Mid::Mid(){}
 Mid::Mid(MarketOrderBook* market) {
     this->parent=market;
     this->name=fmt::format("Mid({}@{})",market->get_instrument(),market->get_exchange());
+    this->mark_dirty();
 }
 
-double Mid::compute() {
-    return dynamic_cast<MarketOrderBook*>(this->parent)->mid();
+void Mid::compute() {
+    if (this->parent && this->parent->is_valid()) {
+        this->value = dynamic_cast<MarketOrderBook*>(this->parent)->mid();
+        this->clear_dirty();
+    } else {
+        this->mark_dirty();
+    }
 }
 
 Bary::Bary()= default;
@@ -23,10 +29,16 @@ Bary::Bary()= default;
 Bary::Bary(MarketOrderBook* market) {
     this->parent=market;
     this->name=fmt::format("Bary({}@{})",market->get_instrument(),market->get_exchange());
+    this->mark_dirty();
 }
 
-double Bary::compute() {
-    return dynamic_cast<MarketOrderBook*>(this->parent)->bary();
+void Bary::compute() {
+    if (this->parent && this->parent->is_valid()) {
+        this->value = dynamic_cast<MarketOrderBook*>(this->parent)->bary();
+        this->clear_dirty();
+    } else {
+        this->mark_dirty();
+    }
 }
 
 
@@ -37,9 +49,14 @@ Vwap::Vwap(MarketOrderBook *market,double const& size) {
     this->market=market;
     this->size=size;
     this->name=fmt::format("Vwap({}@{};size={})",market->get_instrument(),market->get_exchange(),size);
+    this->mark_dirty();
 }
 
-void Vwap::update() {
+void Vwap::compute() {
+    if (!this->market || !this->market->is_valid()) {
+        this->mark_dirty();
+        return;
+    }
     double ask=0;
     double bid=0;
 
@@ -70,8 +87,14 @@ void Vwap::update() {
     // }
 
 
+    if (ask_size == 0 || bid_size == 0) {
+        this->mark_dirty();
+        return;
+    }
+
     this->ask_price=ask/ask_size;
     this->bid_price=bid/bid_size;
+    this->clear_dirty();
 
 }
 

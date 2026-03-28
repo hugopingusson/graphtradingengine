@@ -14,6 +14,7 @@
 #include "../Node/Base/MarketNode.h"
 #include "../../Logger/Logger.h"
 #include "../Node/Base/HeartBeat.h"
+#include "../../Data/DataStructure/DataStructure.h"
 
 using namespace std;
 using namespace fmt;
@@ -86,7 +87,10 @@ protected:
 
 };
 
-class DatabaseBacktestStreamer: public BacktestStreamer, virtual public OrderBookStreamer, virtual public TradeStreamer {
+class DatabaseBacktestStreamer: public BacktestStreamer,
+                               virtual public MarketStreamer,
+                               virtual public OrderBookStreamer,
+                               virtual public TradeStreamer {
 
 public:
     DatabaseBacktestStreamer();

@@ -21,11 +21,7 @@ string Market::get_exchange() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MarketOrderBook::MarketOrderBook():depth(),tick_value(),heart_beat_node(nullptr){};
-MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value):Node(fmt::format("MarketOrderBook(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),depth(depth),tick_value(tick_value),heart_beat_node(nullptr){};
-MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value,HeartBeat* heart_beat_node):MarketOrderBook(instrument,exchange,depth,tick_value) {
-    this->heart_beat_node=heart_beat_node;
-};
-
+MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value):Node(fmt::format("MarketOrderBook(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),Consumer(),depth(depth),tick_value(tick_value),heart_beat_node(nullptr){};
 
 
 OrderBookData MarketOrderBook::get_data() {
@@ -127,6 +123,10 @@ double MarketOrderBook::cumulative_bid_amount(const int& i) const {
 
 // void MarketOrderBook::handle(OrderBookSnapshotEvent& order_book_snapshot) {
 void MarketOrderBook::on_event(Event* event) {
+
+
+
+
     OrderBookSnapshotEvent* order_book_snapshot = dynamic_cast<OrderBookSnapshotEvent*>(event);
 	this->last_streamer_in_timestamp = order_book_snapshot->get_last_streamer_in_timestamp();
     this->last_capture_server_in_timestamp = order_book_snapshot->get_last_market_timestamp().capture_server_in_timestamp;
@@ -134,10 +134,10 @@ void MarketOrderBook::on_event(Event* event) {
     this->data = order_book_snapshot->get_order_book_snapshot_data();
 
     if (!this->check_snapshot()) {
-      this->valid = false;
+      this->mark_dirty();
     }
     else{
-      this->valid = true;
+      this->mark_dirty();
      }
 
 }
@@ -145,7 +145,7 @@ void MarketOrderBook::on_event(Event* event) {
 void MarketOrderBook::update() {
     if (this->heart_beat_node->get_last_streamer_in_timestamp()-this->last_streamer_in_timestamp > 3*1e6) {
         this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at ", this->name,this->time_helper.convert_nanoseconds_to_string(this->last_streamer_in_timestamp)));
-        this->valid = false;
+        this->mark_dirty();
 
     }
 }
@@ -184,65 +184,65 @@ bool MarketOrderBook::check_snapshot() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MarketTrade::MarketTrade():trade_price(),side(),base_quantity(){}
-MarketTrade::MarketTrade(const string &instrument, const string &exchange):Node(fmt::format("MarketTrade(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),trade_price(),side(),base_quantity(){}
-
-
-Side MarketTrade::get_side() {
-    return this->side;
-}
-
-double MarketTrade::get_base_quantity() {
-    return this->base_quantity;
-}
-
-double MarketTrade::get_trade_price() {
-    return this->trade_price;
-}
-
-double MarketTrade::get_quote_quantity() {
-    return this->base_quantity*this->trade_price;
-}
-
-
-// void MarketTrade::handle(TradeEvent& trade) {
-void MarketTrade::on_event(Event* event) {
-    TradeEvent* trade = dynamic_cast<TradeEvent*>(event);
-    this->last_streamer_in_timestamp = trade->get_last_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = trade->get_last_market_timestamp().capture_server_in_timestamp;
-    this->last_order_gateway_in_timestamp = trade->get_last_market_timestamp().order_gateway_in_timestamp;
-
-    this->side = trade->get_side();
-    this->trade_price = trade->get_trade_price();
-    this->base_quantity = trade->get_base_quantity();
-
-    if (!this->check_trade()) {
-        this->valid = false;
-    }
-    else{
-        this->valid = true;
-    }
-
-}
-
-bool MarketTrade::check_trade() {
-
-    if (this->trade_price<0){
-        this->logger->log_error("MarketTrade",fmt::format("trade price received by {} is less than 0, setting to invalid",this->name));
-        return false;
-    }
-
-    if (this->side != Side::ASK & this->side != Side::BID){
-        this->logger->log_error("MarketTrade",fmt::format("side received by {} is different from 1 or -1, setting to invalid",this->name));
-        return false;
-    }
-
-    if (this->base_quantity<0){
-        this->logger->log_error("MarketTrade",fmt::format("base quantity received by {} less than 0, setting to invalid",this->name));
-        return false;
-    }
-
-
-    return true;
-
-};
+// MarketTrade::MarketTrade():trade_price(),side(),base_quantity(){}
+// MarketTrade::MarketTrade(const string &instrument, const string &exchange):Node(fmt::format("MarketTrade(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),trade_price(),side(),base_quantity(){}
+//
+//
+// Side MarketTrade::get_side() {
+//     return this->side;
+// }
+//
+// double MarketTrade::get_base_quantity() {
+//     return this->base_quantity;
+// }
+//
+// double MarketTrade::get_trade_price() {
+//     return this->trade_price;
+// }
+//
+// double MarketTrade::get_quote_quantity() {
+//     return this->base_quantity*this->trade_price;
+// }
+//
+//
+// // void MarketTrade::handle(TradeEvent& trade) {
+// void MarketTrade::on_event(Event* event) {
+//     TradeEvent* trade = dynamic_cast<TradeEvent*>(event);
+//     this->last_streamer_in_timestamp = trade->get_last_streamer_in_timestamp();
+//     this->last_capture_server_in_timestamp = trade->get_last_market_timestamp().capture_server_in_timestamp;
+//     this->last_order_gateway_in_timestamp = trade->get_last_market_timestamp().order_gateway_in_timestamp;
+//
+//     this->side = trade->get_side();
+//     this->trade_price = trade->get_trade_price();
+//     this->base_quantity = trade->get_base_quantity();
+//
+//     if (!this->check_trade()) {
+//         this->valid = false;
+//     }
+//     else{
+//         this->valid = true;
+//     }
+//
+// }
+//
+// bool MarketTrade::check_trade() {
+//
+//     if (this->trade_price<0){
+//         this->logger->log_error("MarketTrade",fmt::format("trade price received by {} is less than 0, setting to invalid",this->name));
+//         return false;
+//     }
+//
+//     if (this->side != Side::ASK & this->side != Side::BID){
+//         this->logger->log_error("MarketTrade",fmt::format("side received by {} is different from 1 or -1, setting to invalid",this->name));
+//         return false;
+//     }
+//
+//     if (this->base_quantity<0){
+//         this->logger->log_error("MarketTrade",fmt::format("base quantity received by {} less than 0, setting to invalid",this->name));
+//         return false;
+//     }
+//
+//
+//     return true;
+//
+// };

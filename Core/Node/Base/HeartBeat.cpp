@@ -5,8 +5,8 @@
 #include "HeartBeat.h"
 
 
-HeartBeat::HeartBeat():SourceNode(),frequency() {}
-HeartBeat::HeartBeat(const double &frequency):frequency(frequency) {
+HeartBeat::HeartBeat():Producer(),frequency() {}
+HeartBeat::HeartBeat(const double &frequency):Producer(),frequency(frequency) {
     this->name=fmt::format("HeartBeat(frequency={})", std::to_string(frequency));
 }
 

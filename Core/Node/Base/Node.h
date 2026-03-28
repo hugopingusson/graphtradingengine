@@ -49,26 +49,43 @@ class Node {
 
 };
 
-class SourceNode:public virtual Node {
-    public:
-    ~SourceNode() override = default;
-    SourceNode();
+// ---------------------------------------------------------------------------
+// Producer / Consumer / ProducerConsumer (replace former SourceNode/ChildNode)
+// ---------------------------------------------------------------------------
+
+class Producer: public virtual Node {
+public:
+    ~Producer() override = default;
+    Producer();
     virtual void on_event(Event* event)=0;
+};
 
+class Consumer: public virtual Node {
+public:
+    ~Consumer() override = default;
+    Consumer();
+
+    bool is_dirty() const;
+    void mark_dirty();
+    void clear_dirty();
+
+    bool update();
+
+    // forward exécute le calcul et retourne true si l'état a changé (valeur/validité), false sinon
+    virtual bool forward() = 0;
+
+protected:
+    bool dirty;
+};
+
+class ProducerConsumer: public Producer, public Consumer {
+public:
+    ~ProducerConsumer() override = default;
+    ProducerConsumer();
 };
 
 
-class ChildNode:public virtual Node {
-    public:
-    ~ChildNode() override = default;
-    ChildNode();
-    virtual void update()=0;
-
-};
-
-
-
-class Quote : public ChildNode {
+class Quote : public Consumer {
     public:
     ~Quote() override = default;
     Quote();
@@ -81,28 +98,26 @@ class Quote : public ChildNode {
     double mid();
     double spread();
 
-    void update() override =0;
+    bool forward() override = 0;
 
     protected:
     double ask_price;
     double bid_price;
 
-
-
 };
 
 
-class Signal: public ChildNode {
+class SingleInputConsumer: public Consumer {
 public:
-    ~Signal() override = default;
-    Signal();
-    Signal(Node* parent);
+    ~SingleInputConsumer() = default;
+    SingleInputConsumer();
+    SingleInputConsumer(Node* parent);
     // explicit Signal(const int& node_id,const string& name,Logger* logger);
 
 
 
     virtual double compute()=0;
-    void update() override;
+    bool forward() override;
 
     [[nodiscard]] double get_value() const;
 

@@ -63,15 +63,22 @@ struct OrderBookSnapshot{
 
 
 struct MarketByPriceMessage{
-    Instrument instrument;
+    std::string instrument;
     MarketTimeStamp market_time_stamp;
     OrderBookData order_book_snapshot_data;
     ActionData action_data;
 };
 
 struct MarketByOrderMessage {
-    Instrument instrument;
+    std::string instrument;
     MarketTimeStamp market_time_stamp;
+    ActionData action_data;
+};
+
+// Minimal snapshot type used by backtest streamer (no instrument stored, only data)
+struct MarketByPriceSnapshot {
+    MarketTimeStamp market_time_stamp;
+    OrderBookData order_book_snapshot_data;
     ActionData action_data;
 };
 

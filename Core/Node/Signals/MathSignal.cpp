@@ -13,6 +13,7 @@ Skew::Skew(Signal *parent1, Signal *parent2) {
     this->parent_2 = parent2;
 
     this->name=fmt::format("Skew({},{})",parent_1->get_name(),parent_2->get_name());
+    this->mark_dirty();
 
 }
 
@@ -23,17 +24,17 @@ double Skew::compute() {
 
 
 void Skew::update() {
-    if (parent_1->is_valid() & parent_2->is_valid()) {
+    if (parent_1 && parent_2 && parent_1->is_valid() && parent_2->is_valid()) {
         double new_value=this->compute();
         if (isnan(new_value)) {
-            this->valid=false;
+            this->mark_dirty();
         }
         else {
-            this->valid=true;
             this->value=new_value;
+            this->clear_dirty();
         }
     }
     else {
-        this->valid=false;
+        this->mark_dirty();
     }
 }
