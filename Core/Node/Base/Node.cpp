@@ -1,5 +1,4 @@
 #include "Node.h"
-#include "../../Graph/EventHandler.h"
 #include <cmath>
 
 Node::Node() {
@@ -26,16 +25,6 @@ Node::Node(const string& name) {
     time_helper=TimeHelper();
 }
 
-// Node::Node(const int& node_id,const string &name,Logger* logger) {
-//     this->node_id=node_id;
-//     sequence_number = int64_t();
-//     last_order_gateway_in_timestamp=int64_t();
-//     last_streamer_in_timestamp=int64_t();
-//     last_capture_server_in_timestamp=int64_t();
-//     valid=false;
-//     this->name=name;
-//     this->logger=logger;
-// }
 
 string Node::get_name() const {
     return this->name;

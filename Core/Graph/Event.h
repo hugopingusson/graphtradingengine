@@ -11,10 +11,11 @@
 
 #include "../../Data/DataStructure/DataStructure.h"
 
+// Forward declaration to allow double-dispatch without circular include
+class MarketOrderBook;
+
 using namespace std;
 
-// template <typename DerivedHandler>
-// class EventHandler;
 
 
 class Event {
@@ -26,10 +27,8 @@ class Event {
     [[nodiscard]] int64_t get_last_streamer_in_timestamp() const;
     [[nodiscard]] int get_source_id_trigger() const;
 
-    // template<typename HandlerType>
-    // void dispatchTo(HandlerType& handler) {
-    //     static_cast<HandlerType&>(handler).handle(*this);
-    // }
+    // Double dispatch entry point
+    virtual void dispatchTo(MarketOrderBook& target) = 0;
 
 
     protected:
@@ -47,14 +46,13 @@ class HeartBeatEvent : public Event {
 
     double get_frequency() const;
 
-    // template<typename HandlerType>
-    // void dispatchTo(HandlerType& handler) {
-    //     static_cast<HandlerType&>(handler).handle(*this);
-    // }
+    void dispatchTo(MarketOrderBook& target) override;
 
     protected:
     double frequency;
 };
+
+
 
 class MarketEvent : public Event {
     public:
@@ -65,14 +63,10 @@ class MarketEvent : public Event {
 
     [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const;
 
-    // template<typename HandlerType>
-    // void dispatchTo(HandlerType& handler) {
-    //     static_cast<HandlerType&>(handler).handle(*this);
-    // }
+    void dispatchTo(MarketOrderBook& target) override;
+
 
     protected:
-    // int64_t last_order_gateway_in_timestamp;
-    // int64_t last_capture_server_in_timestamp;
 
     MarketTimeStamp market_timestamp;
 
@@ -84,22 +78,34 @@ class OrderBookSnapshotEvent : public MarketEvent {
     public:
     OrderBookSnapshotEvent();
     ~OrderBookSnapshotEvent() override =default;
-    OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const OrderBookData& order_book_snapshot_data);
+    OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const MarketByPriceMessage& mbp_message);
 
-    [[nodiscard]] OrderBookData get_order_book_snapshot_data() const;
+    [[nodiscard]] MarketByPriceMessage get_message() const;
+    [[nodiscard]] SnapshotData get_snapshot_data() const;
 
-    // template<typename HandlerType>
-    // void dispatchTo(HandlerType& handler) {
-    //     static_cast<HandlerType&>(handler).handle(*this);
-    // }
+    void dispatchTo(MarketOrderBook& target) override;
 
     protected:
-    // map<string,vector<double>> data;
-    OrderBookData order_book_snapshot_data;
-
-
+    MarketByPriceMessage mbp_message;
 
 };
+
+class IncrementalEvent : public MarketEvent {
+public:
+    IncrementalEvent();
+    ~IncrementalEvent() override =default;
+    IncrementalEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const MarketByOrderMessage& mbo_message);
+
+    [[nodiscard]] MarketByOrderMessage get_message() const;
+    [[nodiscard]] ActionData get_action_data() const;
+
+    void dispatchTo(MarketOrderBook& target) override;
+
+protected:
+    MarketByOrderMessage mbo_message;
+
+};
+
 
 class TradeEvent : public MarketEvent {
     public:
@@ -111,10 +117,6 @@ class TradeEvent : public MarketEvent {
     double get_trade_price() const;
     double get_base_quantity() const;
 
-    // template<typename HandlerType>
-    // void dispatchTo(HandlerType& handler) {
-    //     static_cast<HandlerType&>(handler).handle(*this);
-    // }
 
     protected:
     Side side;

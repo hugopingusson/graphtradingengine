@@ -3,6 +3,7 @@
 //
 
 #include "Event.h"
+#include "../Node/Base/MarketNode.h"
 
 
 
@@ -38,15 +39,45 @@ MarketTimeStamp MarketEvent::get_last_market_timestamp() const {
     return this->market_timestamp;
 }
 
-
-
-OrderBookSnapshotEvent::OrderBookSnapshotEvent():MarketEvent(),order_book_snapshot_data() {}
-OrderBookSnapshotEvent::OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const OrderBookData& order_book_snapshot_data):MarketEvent(market_time_stamp,last_streamer_in_timestamp,source_id_trigger),order_book_snapshot_data(order_book_snapshot_data){}
-
-OrderBookData OrderBookSnapshotEvent::get_order_book_snapshot_data() const {
-  return this->order_book_snapshot_data;
+// Double-dispatch implementations
+void HeartBeatEvent::dispatchTo(MarketOrderBook& target) {
+    target.handle(*this);
 }
 
+void MarketEvent::dispatchTo(MarketOrderBook& target) {
+    target.handle(*this);
+}
+
+void OrderBookSnapshotEvent::dispatchTo(MarketOrderBook& target) {
+    target.handle(*this);
+}
+
+void IncrementalEvent::dispatchTo(MarketOrderBook& target) {
+    target.handle(*this);
+}
+
+
+OrderBookSnapshotEvent::OrderBookSnapshotEvent():MarketEvent(),mbp_message() {}
+OrderBookSnapshotEvent::OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const MarketByPriceMessage& mbp_message):MarketEvent(market_time_stamp,last_streamer_in_timestamp,source_id_trigger),mbp_message(mbp_message){}
+
+MarketByPriceMessage OrderBookSnapshotEvent::get_message() const {
+  return this->mbp_message;
+}
+
+SnapshotData OrderBookSnapshotEvent::get_snapshot_data() const {
+    return this->mbp_message.order_book_snapshot_data;
+}
+
+
+IncrementalEvent::IncrementalEvent():MarketEvent(),mbo_message() {}
+IncrementalEvent::IncrementalEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const MarketByOrderMessage& mbo_message):MarketEvent(market_time_stamp,last_streamer_in_timestamp,source_id_trigger),mbo_message(mbo_message){}
+
+MarketByOrderMessage IncrementalEvent::get_message() const {
+    return this->mbo_message;
+}
+ActionData IncrementalEvent::get_action_data() const {
+    return this->mbo_message.action_data;
+}
 
 TradeEvent::TradeEvent():MarketEvent(),side(),trade_price(),base_quantity() {}
 TradeEvent::TradeEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const Side& side,const double& trade_price,const double& base_quantity):MarketEvent(market_time_stamp,last_streamer_in_timestamp,source_id_trigger){
