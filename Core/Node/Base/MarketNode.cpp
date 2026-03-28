@@ -28,7 +28,7 @@ MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchang
 
 
 
-OrderBookSnapshotData MarketOrderBook::get_data() {
+OrderBookData MarketOrderBook::get_data() {
     return this->data;
 }
 

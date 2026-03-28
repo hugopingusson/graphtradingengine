@@ -51,38 +51,17 @@ class Node {
 
 class SourceNode:public virtual Node {
     public:
-    virtual ~SourceNode() = default;
+    ~SourceNode() override = default;
     SourceNode();
-    // explicit SourceNode(const string& name); /// No only default
-
     virtual void on_event(Event* event)=0;
 
 };
 
 
-// template <typename Derived>
-// class SourceNode:public virtual Node,public EventHandler<Derived>  {
-// public:
-//     virtual ~SourceNode() = default;
-//     SourceNode();
-//     // explicit SourceNode(const string& name); /// No only default
-//
-//     void on_event(Event* event) {
-//         if (event) {
-//             event->dispatchTo(static_cast<Derived&>(*this));
-//         }
-//     }
-//
-// };
-
-
 class ChildNode:public virtual Node {
     public:
-    virtual ~ChildNode() = default;
+    ~ChildNode() override = default;
     ChildNode();
-    // ChildNode(const int& node_id,const string& name,Logger* main_logger); // No only default
-    // explicit ChildNode(const string& name);
-
     virtual void update()=0;
 
 };
@@ -92,7 +71,6 @@ class ChildNode:public virtual Node {
 class Quote : public ChildNode {
     public:
     ~Quote() override = default;
-
     Quote();
     // explicit Quote(const string& name);
     // explicit Quote(const int& node_id,const string& name,Logger* main_logger);
@@ -113,43 +91,96 @@ class Quote : public ChildNode {
 
 };
 
+
 class Signal: public ChildNode {
-    public:
+public:
     ~Signal() override = default;
     Signal();
+    Signal(Node* parent);
     // explicit Signal(const int& node_id,const string& name,Logger* logger);
 
 
 
     virtual double compute()=0;
-    void update() override =0;
+    void update() override;
 
     [[nodiscard]] double get_value() const;
 
+    Node* get_parent() const;
 
-
-    protected:
+protected:
+    Node* parent;
     double value;
 
 
 };
 
-class MonoSignal: public Signal {
-    public:
-    ~MonoSignal() override = default;
-    MonoSignal();
-    MonoSignal(Node* parent);
-    // explicit MonoSignal(const int& node_id,const string& name,Node* parent,Logger* logger);
-    virtual double compute()=0;
 
 
-    void update() override;
-    Node* get_parent() const;
 
-    protected:
-    Node* parent;
+//
+// class Signal: public ChildNode {
+//     public:
+//     ~Signal() override = default;
+//     Signal();
+//     // explicit Signal(const int& node_id,const string& name,Logger* logger);
+//
+//
+//
+//     virtual double compute()=0;
+//     void update() override =0;
+//
+//     [[nodiscard]] double get_value() const;
+//
+//
+//
+//     protected:
+//     double value;
+//
+//
+// };
+//
+// class MonoSignal: public Signal {
+//     public:
+//     ~MonoSignal() override = default;
+//     MonoSignal();
+//     MonoSignal(Node* parent);
+//     // explicit MonoSignal(const int& node_id,const string& name,Node* parent,Logger* logger);
+//     virtual double compute()=0;
+//
+//
+//     void update() override;
+//     Node* get_parent() const;
+//
+//     protected:
+//     Node* parent;
+//
+// };
 
-};
+
+
+
+
+// ChildNode(const int& node_id,const string& name,Logger* main_logger); // No only default
+// explicit ChildNode(const string& name);
+
+// template <typename Derived>
+// class SourceNode:public virtual Node,public EventHandler<Derived>  {
+// public:
+//     virtual ~SourceNode() = default;
+//     SourceNode();
+//     // explicit SourceNode(const string& name); /// No only default
+//
+//     void on_event(Event* event) {
+//         if (event) {
+//             event->dispatchTo(static_cast<Derived&>(*this));
+//         }
+//     }
+//
+// };
+
+
+
 
 // class ValidCollector {
 // public:
@@ -176,6 +207,44 @@ class MonoSignal: public Signal {
 //
 //     protected:ll
 //     ValidCollector valid_collector;
+// };
+
+// class Signal: public ChildNode {
+// public:
+//     ~Signal() override = default;
+//     Signal();
+//     // explicit Signal(const int& node_id,const string& name,Logger* logger);
+//
+//
+//
+//     virtual double compute()=0;
+//     void update() override =0;
+//
+//     [[nodiscard]] double get_value() const;
+//
+//
+//
+// protected:
+//     double value;
+//
+//
+// };
+//
+// class MonoSignal: public Signal {
+// public:
+//     ~MonoSignal() override = default;
+//     MonoSignal();
+//     MonoSignal(Node* parent);
+//     // explicit MonoSignal(const int& node_id,const string& name,Node* parent,Logger* logger);
+//     virtual double compute()=0;
+//
+//
+//     void update() override;
+//     Node* get_parent() const;
+//
+// protected:
+//     Node* parent;
+//
 // };
 
 #endif //CLASS_NODE_H

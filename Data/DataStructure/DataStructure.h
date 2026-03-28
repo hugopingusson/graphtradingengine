@@ -5,6 +5,7 @@
 #ifndef DATASTRUCTURE_H
 #define DATASTRUCTURE_H
 
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <fstream>
@@ -12,7 +13,11 @@
 #include <queue>
 #include <string>
 
+#include "../../Helper/Configuration.h"
+
 #pragma pack(push, 1)
+
+inline constexpr std::size_t kBookLevels = 10;
 
 enum class Action : std::int32_t { ADD=0, CANCEL=1, MODIFY=2, TRADE=3 };
 enum class Side   : std::int32_t { BID=0, ASK=1, NEUTRAL=2 };
@@ -24,15 +29,11 @@ struct MarketTimeStamp {
 };
 
 
-// struct MarketDataPoint {
-//     MarketTimeStamp market_timestamp;
-// };
-
-struct OrderBookSnapshotData{
-    double bid_price[10];
-    double bid_size[10];
-    double ask_price[10];
-    double ask_size[10];
+struct OrderBookData{
+    double bid_price[kBookLevels];
+    double bid_size[kBookLevels];
+    double ask_price[kBookLevels];
+    double ask_size[kBookLevels];
 
 };
 
@@ -56,23 +57,23 @@ struct TradeData {
 
 struct OrderBookSnapshot{
     MarketTimeStamp market_time_stamp;
-    OrderBookSnapshotData order_book_snapshot_data;
+    OrderBookData order_book_snapshot_data;
 };
 
 
 
-struct MarketByPriceSnapshot{
-    // OrderBookSnapshot order_book_snapshot;
+struct MarketByPriceMessage{
+    Instrument instrument;
     MarketTimeStamp market_time_stamp;
-    OrderBookSnapshotData order_book_snapshot_data;
+    OrderBookData order_book_snapshot_data;
     ActionData action_data;
 };
 
-
-
-// struct Order:MarketDataPoint{
-//     Action action;
-// };
+struct MarketByOrderMessage {
+    Instrument instrument;
+    MarketTimeStamp market_time_stamp;
+    ActionData action_data;
+};
 
 #pragma pack(pop)
 
@@ -84,29 +85,6 @@ struct HeapItem {
         return row.capture_server_in_timestamp > other.row.capture_server_in_timestamp;
     }
 };
-
-
-
-// struct StreamCursor {
-//     std::ifstream file;
-//     OrderBookSnapshot current;
-//     size_t file_id;
-//
-//     StreamCursor(const std::string& path, size_t id) : file_id(id) {
-//         file.open(path, std::ios::binary);
-//         advance();
-//     }
-//
-//     bool advance() {
-//         file.read(reinterpret_cast<char*>(&current), sizeof(OrderBookSnapshot));
-//         return file.gcount() == sizeof(OrderBookSnapshot);
-//     }
-//
-//     bool is_good() const {
-//         return file.good();
-//     }
-// };
-
 
 
 

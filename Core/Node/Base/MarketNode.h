@@ -47,7 +47,7 @@ class MarketOrderBook:public Market,public ChildNode  {
     MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
     MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value,HeartBeat* heart_beat_node);
 
-    OrderBookSnapshotData get_data();
+    OrderBookData get_data();
     int get_depth();
     double get_tick_value();
 
@@ -82,7 +82,7 @@ class MarketOrderBook:public Market,public ChildNode  {
 
 
     protected:
-    OrderBookSnapshotData data;
+    OrderBookData data;
     int depth;
     double tick_value;
     HeartBeat* heart_beat_node;

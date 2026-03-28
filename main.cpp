@@ -24,7 +24,7 @@ int main() {
     // MarketTrade market_trade = MarketTrade("EURUSD","cme");
 
 
-    Vwap vwap = Vwap(&market,350);
+    Vwap vwap = Vwap(&market,10);
 
     // Mid mid = Mid(&market);
     // Bary bary=Bary(&market);

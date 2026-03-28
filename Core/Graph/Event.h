@@ -84,9 +84,9 @@ class OrderBookSnapshotEvent : public MarketEvent {
     public:
     OrderBookSnapshotEvent();
     ~OrderBookSnapshotEvent() override =default;
-    OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const OrderBookSnapshotData& order_book_snapshot_data);
+    OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const OrderBookData& order_book_snapshot_data);
 
-    [[nodiscard]] OrderBookSnapshotData get_order_book_snapshot_data() const;
+    [[nodiscard]] OrderBookData get_order_book_snapshot_data() const;
 
     // template<typename HandlerType>
     // void dispatchTo(HandlerType& handler) {
@@ -95,7 +95,7 @@ class OrderBookSnapshotEvent : public MarketEvent {
 
     protected:
     // map<string,vector<double>> data;
-    OrderBookSnapshotData order_book_snapshot_data;
+    OrderBookData order_book_snapshot_data;
 
 
 

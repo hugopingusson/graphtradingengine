@@ -32,6 +32,7 @@ add_executable(GraphTradingEngine
         Core/Node/Signals/MathSignal.cpp
         Core/Streamer/Streamer.cpp
         Core/Engine/BacktestEngine.cpp
+        Helper/Configuration.h
 
         # ⚠️ Ajoute ici les .cpp réellement utilisés par main :
         # Core/Node/OrderBook/MarketOrderBook.cpp

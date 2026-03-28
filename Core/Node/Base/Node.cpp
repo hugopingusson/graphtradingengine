@@ -113,32 +113,23 @@ double Quote::spread() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Signal::Signal(): value(std::nan("")){}
+Signal::Signal(): parent(nullptr),value(std::nan("")){}
 // Signal::Signal(const int& node_id,const string &name,Logger* logger):ChildNode(node_id,name,logger),value(std::nan("")) {}
+
+Signal::Signal(Node *parent) : value(std::nan("")) {
+    this->parent = parent;
+}
 
 
 double Signal::get_value() const {
     return this->value;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-MonoSignal::MonoSignal() {
-    parent=nullptr;
-};
-
-MonoSignal::MonoSignal(Node* parent) {
-    this->parent=parent;
-}
-
-// MonoSignal::MonoSignal(const int& node_id,const string &name,Node* parent,Logger* logger):Signal(node_id,name,logger),parent(parent) {}
-
-Node *MonoSignal::get_parent() const {
+Node* Signal::get_parent() const {
     return this->parent;
 }
 
-
-void MonoSignal::update() {
+void Signal::update() {
     if ((*this->parent).is_valid()) {
         this->value=this->compute();
         if (std::isnan(this->value)) {
@@ -151,6 +142,49 @@ void MonoSignal::update() {
         this->valid=false;
     }
 }
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Signal::Signal(): value(std::nan("")){}
+// // Signal::Signal(const int& node_id,const string &name,Logger* logger):ChildNode(node_id,name,logger),value(std::nan("")) {}
+//
+//
+// double Signal::get_value() const {
+//     return this->value;
+// }
+//
+// ///////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// MonoSignal::MonoSignal() {
+//     parent=nullptr;
+// };
+//
+// MonoSignal::MonoSignal(Node* parent) {
+//     this->parent=parent;
+// }
+//
+// // MonoSignal::MonoSignal(const int& node_id,const string &name,Node* parent,Logger* logger):Signal(node_id,name,logger),parent(parent) {}
+//
+// Node *MonoSignal::get_parent() const {
+//     return this->parent;
+// }
+//
+//
+// void MonoSignal::update() {
+//     if ((*this->parent).is_valid()) {
+//         this->value=this->compute();
+//         if (std::isnan(this->value)) {
+//             this->valid=false;
+//         }
+//         else {
+//             this->valid=true;
+//         }
+//     }else {
+//         this->valid=false;
+//     }
+// }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 

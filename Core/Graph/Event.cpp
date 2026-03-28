@@ -41,9 +41,9 @@ MarketTimeStamp MarketEvent::get_last_market_timestamp() const {
 
 
 OrderBookSnapshotEvent::OrderBookSnapshotEvent():MarketEvent(),order_book_snapshot_data() {}
-OrderBookSnapshotEvent::OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const OrderBookSnapshotData& order_book_snapshot_data):MarketEvent(market_time_stamp,last_streamer_in_timestamp,source_id_trigger),order_book_snapshot_data(order_book_snapshot_data){}
+OrderBookSnapshotEvent::OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const OrderBookData& order_book_snapshot_data):MarketEvent(market_time_stamp,last_streamer_in_timestamp,source_id_trigger),order_book_snapshot_data(order_book_snapshot_data){}
 
-OrderBookSnapshotData OrderBookSnapshotEvent::get_order_book_snapshot_data() const {
+OrderBookData OrderBookSnapshotEvent::get_order_book_snapshot_data() const {
   return this->order_book_snapshot_data;
 }
 

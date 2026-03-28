@@ -8,7 +8,7 @@
 #include "../Base/Node.h"
 #include "../Base/MarketNode.h"
 
-class Mid:public MonoSignal {
+class Mid:public Signal {
     public:
     Mid();
     ~Mid() override = default;
@@ -20,7 +20,7 @@ class Mid:public MonoSignal {
 };
 
 
-class Bary:public MonoSignal {
+class Bary:public Signal {
     public:
     Bary();
     ~Bary() override = default;
