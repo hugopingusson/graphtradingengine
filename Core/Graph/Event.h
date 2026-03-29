@@ -74,11 +74,11 @@ class MarketEvent : public Event {
 
 
 
-class OrderBookSnapshotEvent : public MarketEvent {
+class MBPEvent : public MarketEvent {
     public:
-    OrderBookSnapshotEvent();
-    ~OrderBookSnapshotEvent() override =default;
-    OrderBookSnapshotEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const MarketByPriceMessage& mbp_message);
+    MBPEvent();
+    ~MBPEvent() override =default;
+    MBPEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const MarketByPriceMessage& mbp_message);
 
     [[nodiscard]] MarketByPriceMessage get_message() const;
     [[nodiscard]] SnapshotData get_snapshot_data() const;
@@ -90,19 +90,37 @@ class OrderBookSnapshotEvent : public MarketEvent {
 
 };
 
-class IncrementalEvent : public MarketEvent {
+class MBOEvent : public MarketEvent {
 public:
-    IncrementalEvent();
-    ~IncrementalEvent() override =default;
-    IncrementalEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const MarketByOrderMessage& mbo_message);
+    MBOEvent();
+    ~MBOEvent() override =default;
+    MBOEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const MarketByOrderMessage& mbo_message);
 
     [[nodiscard]] MarketByOrderMessage get_message() const;
-    [[nodiscard]] ActionData get_action_data() const;
+    [[nodiscard]] Order get_order() const;
 
     void dispatchTo(MarketOrderBook& target) override;
 
 protected:
     MarketByOrderMessage mbo_message;
+
+};
+
+class UpdateEvent : public MarketEvent {
+public:
+    UpdateEvent();
+    ~UpdateEvent() override =default;
+    UpdateEvent(const MarketTimeStamp& market_time_stamp, const int64_t& last_streamer_in_timestamp,const int& source_id_trigger,const MarketUpdateMessage& mbo_message);
+
+    [[nodiscard]] MarketUpdateMessage get_message() const;
+    [[nodiscard]] BookLevel get_book_level() const;
+    [[nodiscard]] Action get_action() const;
+    [[nodiscard]] Side get_side() const;
+
+    void dispatchTo(MarketOrderBook& target) override;
+
+protected:
+    MarketUpdateMessage update_message;
 
 };
 

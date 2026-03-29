@@ -22,6 +22,7 @@
 inline constexpr std::size_t kBookLevels = 10;
 
 enum class Action : std::int32_t { ADD=0, CANCEL=1, MODIFY=2, TRADE=3 };
+// enum class Update : std::int32_t { INSERT=0, DELETE=1, UPDATE=2 };
 enum class Side   : std::int32_t { BID=0, ASK=1, NEUTRAL=2 };
 
 struct MarketTimeStamp {
@@ -109,36 +110,35 @@ inline void clear_snapshot(SnapshotData& out) {
 }
 
 
-struct ActionData {
+struct Order {
     Side side{};
     Action action{};
     std::int32_t layer{};      // fixe la taille
     double price{};
-    double base_quantity{};
-};
-
-struct TradeData {
-    Side side{};
-    Action action{Action::TRADE};
-    std::int32_t layer{0};
-    double price{};
-    double base_quantity{};
+    double size{};
 };
 
 
+struct MarketByOrderMessage {
+    std::string instrument;
+    MarketTimeStamp market_time_stamp;
+    Order order;
+};
+
+struct MarketUpdateMessage {
+    std::string instrument;
+    MarketTimeStamp market_time_stamp;
+    BookLevel level;
+    Side side;
+    Action action;
+};
 
 struct MarketByPriceMessage{
     std::string instrument;
     MarketTimeStamp market_time_stamp;
     SnapshotData order_book_snapshot_data;
-    ActionData action_data;
 };
 
-struct MarketByOrderMessage {
-    std::string instrument;
-    MarketTimeStamp market_time_stamp;
-    ActionData action_data;
-};
 
 
 #pragma pack(pop)

@@ -112,6 +112,105 @@ double MarketOrderBook::bary() const {
     return this->mid()+0.5*this->spread()*this->imbalance();
 }
 
+
+bool MarketOrderBook::match(Order order) {
+    if (order.action==Action::ADD) {
+        if (order.side==Side::ASK) {
+            if (ask_ladder.contains(order.price)){
+                ask_ladder[order.price].size+=order.size;
+                return true;
+            }
+            else {
+                ask_ladder[order.price].size=order.size;
+                return true;
+            }
+        }
+        if (order.side==Side::BID) {
+            if (bid_ladder.contains(order.price)){
+                bid_ladder[order.price].size+=order.size;
+                return true;
+            }
+            else {
+                bid_ladder[order.price].size=order.size;
+                return true;
+            }
+        }
+
+    }
+    if (order.action==Action::CANCEL) {
+        if (order.side==Side::ASK) {
+            if (ask_ladder.contains(order.price)){
+
+                if (ask_ladder[order.price].size<order.size) {
+                    return false;
+                }
+
+                ask_ladder[order.price].size-=order.size;
+                if (ask_ladder[order.price].size==0) {
+                    ask_ladder.erase(order.price);
+                }
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        if (order.side==Side::BID) {
+            if (bid_ladder.contains(order.price)){
+
+                if (bid_ladder[order.price].size<order.size) {
+                    return false;
+                }
+
+                bid_ladder[order.price].size-=order.size;
+                if (bid_ladder[order.price].size==0) {
+                    bid_ladder.erase(order.price);
+                }
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+
+    }
+    if (order.action==Action::TRADE) {
+        if (order.side==Side::ASK) {
+            double unfilled=order.size;
+            double take;
+            for (auto layer : ask_ladder) {
+                if (unfilled==0){break;}
+                take=std::min(unfilled,layer.second.size);
+                unfilled-=take;
+                layer.second.size-=take;
+                if (layer.second.size==0) {
+                    ask_ladder.erase(layer.first);
+                }
+            }
+        }
+        if (order.side==Side::BID) {
+            double unfilled=order.size;
+            double take;
+            for (auto layer : bid_ladder) {
+                if (unfilled==0){break;}
+                take=std::min(unfilled,layer.second.size);
+                unfilled-=take;
+                layer.second.size-=take;
+                if (layer.second.size==0) {
+                    bid_ladder.erase(layer.first);
+                }
+            }
+        }
+        return true;
+
+    }
+
+}
+
+
+
+
+
 // Double-dispatch entry
 void MarketOrderBook::on_event(Event* event) {
     if (!event) return;
@@ -131,45 +230,56 @@ void MarketOrderBook::handle(MarketEvent& ev) {
 }
 
 // Specific handler for OrderBookSnapshotEvent
-void MarketOrderBook::handle(OrderBookSnapshotEvent& order_book_snapshot) {
-    this->last_streamer_in_timestamp = order_book_snapshot.get_last_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = order_book_snapshot.get_last_market_timestamp().capture_server_in_timestamp;
-    this->last_order_gateway_in_timestamp = order_book_snapshot.get_last_market_timestamp().order_gateway_in_timestamp;
-    snapshot_to_ladder(order_book_snapshot.get_snapshot_data(),this->bid_ladder,this->ask_ladder);
+void MarketOrderBook::handle(MBPEvent& mbp_event) {
+    this->last_streamer_in_timestamp = mbp_event.get_last_streamer_in_timestamp();
+    this->last_capture_server_in_timestamp = mbp_event.get_last_market_timestamp().capture_server_in_timestamp;
+    this->last_order_gateway_in_timestamp = mbp_event.get_last_market_timestamp().order_gateway_in_timestamp;
+    snapshot_to_ladder(mbp_event.get_snapshot_data(),this->bid_ladder,this->ask_ladder);
     this->valid=check_snapshot();
 }
 
-void MarketOrderBook::handle(IncrementalEvent& incremental_event) {
-    this->last_streamer_in_timestamp = incremental_event.get_last_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = incremental_event.get_last_market_timestamp().capture_server_in_timestamp;
-    this->last_order_gateway_in_timestamp = incremental_event.get_last_market_timestamp().order_gateway_in_timestamp;
-    this->match()
+void MarketOrderBook::handle(MBOEvent& mbo_event) {
+    this->last_streamer_in_timestamp = mbo_event.get_last_streamer_in_timestamp();
+    this->last_capture_server_in_timestamp = mbo_event.get_last_market_timestamp().capture_server_in_timestamp;
+    this->last_order_gateway_in_timestamp = mbo_event.get_last_market_timestamp().order_gateway_in_timestamp;
+    this->match(mbo_event.get_order());
     this->valid=check_snapshot();
 }
+
+void MarketOrderBook::handle(UpdateEvent& update_event) {
+    this->last_streamer_in_timestamp = update_event.get_last_streamer_in_timestamp();
+    this->last_capture_server_in_timestamp = update_event.get_last_market_timestamp().capture_server_in_timestamp;
+    this->last_order_gateway_in_timestamp = update_event.get_last_market_timestamp().order_gateway_in_timestamp;
+    this->update(update_event.get_book_level(),update_event.get_side(),update_event.get_action());
+    this->valid=check_snapshot();
+}
+
+
+
 
 bool MarketOrderBook::check_snapshot() {
-  if (this->ask_price(0)==0){
+  if (this->get_best_ask_price()==0){
     this->logger->log_error("MarketOrderBook",fmt::format("ask price received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
-  if (this->bid_price(0)==0){
+  if (this->get_best_bid_price()==0){
     this->logger->log_error("MarketOrderBook",fmt::format("bid price received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
-  if (this->ask_size(0)==0){
+  if (this->get_best_ask_size()==0){
     this->logger->log_error("MarketOrderBook",fmt::format("ask size received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
-  if (this->bid_size(0)==0){
+  if (this->get_best_bid_size()==0){
     this->logger->log_error("MarketOrderBook",fmt::format("bid size received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
-  if (this->bid_price(0)>=this->ask_price(0)){
-    this->logger->log_error("MarketOrderBook",fmt::format("snapshot received @ {} by {} show bid={}>=ask={} , setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name,this->bid_price(0),this->ask_price(0)));
+  if (this->get_best_bid_price()>=this->get_best_ask_price()){
+    this->logger->log_error("MarketOrderBook",fmt::format("snapshot received @ {} by {} show bid={}>=ask={} , setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name,this->get_best_bid_price(),this->get_best_ask_price()));
   	return false;
   }
 
