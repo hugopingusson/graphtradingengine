@@ -20,9 +20,9 @@ Graph::Graph(){
     last_in_graph_timestamp=int64_t();
     last_out_graph_timestamp=int64_t();
     adjacency_map=map<int,vector<int>>();
-    child_node_container=map<int,ChildNode*>();
-    source_container=map<int,SourceNode*>();
-    output_container=map<int,ChildNode*>();
+    consumer_container=map<int,Consumer*>();
+    producer_container=map<int,Producer*>();
+    sink_container=map<int,Node*>();
     max_id=0;
 };
 
@@ -35,9 +35,9 @@ Graph::Graph(Logger *logger) {
     last_in_graph_timestamp=int64_t();
     last_out_graph_timestamp=int64_t();
     adjacency_map=map<int,vector<int>>();
-    child_node_container=map<int,ChildNode*>();
-    source_container=map<int,SourceNode*>();
-    output_container=map<int,ChildNode*>();
+    consumer_container=map<int,Consumer*>();
+    producer_container=map<int,Producer*>();
+    sink_container=map<int,Node*>();
     max_id=0;
     logger->log_info("Graph","Created Graph");
 }
@@ -52,18 +52,18 @@ map<int, vector<int> > Graph::get_adjacency_map() {
     return this->adjacency_map;
 }
 
-map<int,ChildNode*> Graph::get_child_node_container() {
-    return this->child_node_container;
+map<int,Consumer*> Graph::get_consumer_container() {
+    return this->consumer_container;
 }
 
 // template <typename Derived>
 // map<int,SourceNode<Derived>*> Graph::get_source_container() {
-map<int,SourceNode*> Graph::get_source_container() {
-    return this->source_container;
+map<int,Producer*> Graph::get_producer_container() {
+    return this->producer_container;
 }
 
-map<int,ChildNode*> Graph::get_output_container() {
-    return this->output_container;
+map<int,Node*> Graph::get_sink_container() {
+    return this->sink_container;
 }
 
 map<int,vector<int>> Graph::get_update_path() {
@@ -76,17 +76,17 @@ int64_t Graph::get_last_graph_latency() const {
 
 
 bool Graph::empty() const {
-    return (this->child_node_container.empty() && this->source_container.empty());
+    return (this->consumer_container.empty() && this->producer_container.empty());
 }
 
 
 int Graph::get_node_id(Node* node) const{
-    for (auto &it: this->child_node_container) {
+    for (auto &it: this->consumer_container) {
         if (it.second==node) {
             return it.first;
         }
     }
-    for (auto &it: this->source_container) {
+    for (auto &it: this->producer_container) {
         if (it.second==node) {
             return it.first;
         }
@@ -98,12 +98,12 @@ int Graph::get_node_id(Node* node) const{
 
 bool Graph::checked_in(Node* node) {
     bool checked_in=false;
-    for (auto &it: this->child_node_container) {
+    for (auto &it: this->consumer_container) {
         if (it.second==node) {
             checked_in=true;
         }
     }
-    for (auto &it: this->source_container) {
+    for (auto &it: this->producer_container) {
         if (it.second==node) {
             checked_in=true;
         }
@@ -115,7 +115,7 @@ bool Graph::checked_in(Node* node) {
 
 // template <typename Derived>
 // void Graph::add_source(SourceNode<Derived>* source_node) {
-void Graph::add_source(SourceNode* source_node) {
+void Graph::add_producer(Producer* source_node) {
     if (this->empty()) {
         this->max_id=1;
     }
@@ -129,13 +129,13 @@ void Graph::add_source(SourceNode* source_node) {
     this->adjacency_map[this->max_id]=vector<int>();
     this->logger->log_info("Graph",fmt::format("Checked in source node: node name = {} node id = {}",source_node->get_name(),source_node->get_node_id()));
 
-    this->source_container[this->max_id]=source_node;
+    this->producer_container[this->max_id]=source_node;
     this->logger->log_info("Graph",fmt::format("Added source node: {}",source_node->get_name()));
 }
 
 
 
-void Graph::add_edge(Node *publisher, ChildNode *subscriber) {
+void Graph::add_edge(Node *publisher, Consumer *subscriber) {
 
     int publisher_id = this->get_node_id(publisher);
     if (publisher_id==-1) {
@@ -151,7 +151,7 @@ void Graph::add_edge(Node *publisher, ChildNode *subscriber) {
         subscriber->set_logger(this->logger);
 
 
-        this->child_node_container[this->max_id]=subscriber;
+        this->consumer_container[this->max_id]=subscriber;
         this->adjacency_map[this->max_id]=vector<int>();
 
         this->logger->log_info("Graph",fmt::format("Checked in child node: node name = {} node id = {}",subscriber->get_name(),subscriber->get_node_id()));
@@ -164,7 +164,7 @@ void Graph::add_edge(Node *publisher, ChildNode *subscriber) {
 void Graph::resolve_output_nodes() {
     for (auto &node: this->adjacency_map) {
         if (this->adjacency_map[node.first].empty()) {
-            this->output_container[node.first]=this->child_node_container[node.first];
+            this->sink_container[node.first]=this->consumer_container[node.first];
         }
     }
 }
@@ -191,13 +191,13 @@ void Graph::resolve_update_path() {
     this->resolve_output_nodes();
 
     vector<vector<int>> all_update_path;
-    for (auto &it: this->source_container) {
+    for (auto &it: this->producer_container) {
         for (auto &path : this->link(it.first)){
             all_update_path.push_back(path);
         }
     }
 
-    for (auto &it: this->source_container) {
+    for (auto &it: this->producer_container) {
 
         vector<vector<int>> sub_path;
         for (auto &path: all_update_path) {
@@ -252,7 +252,13 @@ void Graph::resolve_update_path() {
 
 void Graph::update(const int& source_id) {
     for (int& node_id:this->update_path[source_id]) {
-        this->child_node_container[node_id]->update();
+        if (this->consumer_container[node_id]->is_dirty()) {
+            if (this->consumer_container[node_id]->update()) {
+                for (auto consumer_id: adjacency_map[node_id]) {
+                    consumer_container[consumer_id]->mark_dirty();
+                }
+            }
+        }
     }
 }
 

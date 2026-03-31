@@ -56,13 +56,15 @@ class MarketOrderBook:public Market  {
     double get_best_bid_size() const;
 
     bool match(Order order);
-    void update(BookLevel order,Side side,Action action);
+    void update(BookLevel level,Side side,Action action);
 
 
     int get_depth();
     double get_tick_value();
 
     bool check_snapshot();
+    bool check_staleness(HeartBeatEvent& hb);
+
     void on_event(Event* event) override; // entry point
     // handlers used by double-dispatch
     void handle(MarketEvent& event);

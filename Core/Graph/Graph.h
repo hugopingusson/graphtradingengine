@@ -22,9 +22,9 @@ class Graph {
     int64_t get_last_graph_latency() const;
     Logger* get_logger();
     map<int,vector<int>> get_adjacency_map();
-    map<int,Consumer*> get_child_node_container();
-    map<int,Producer*> get_source_container();
-    map<int,Consumer*> get_output_container();
+    map<int,Consumer*> get_consumer_container();
+    map<int,Producer*> get_producer_container();
+    map<int,Node*> get_sink_container();
     map<int,vector<int>> get_update_path();
 
     bool empty() const;
@@ -33,10 +33,9 @@ class Graph {
 
 
     bool checked_in(Node* node);
-    // template <typename Derived>
-    // void add_source(SourceNode<Derived>* source_node);
-    void add_source(SourceNode* source_node);
-    void add_edge(Node* publisher,ChildNode* subscriber);
+
+    void add_producer(Producer* source_node);
+    void add_edge(Node* publisher,Consumer* subscriber);
     void resolve_output_nodes();
     void resolve_update_path();
     vector<vector<int>> link(int target_node_id);
@@ -58,11 +57,9 @@ protected:
     Logger* logger;
 
     map<int,vector<int>> adjacency_map;
-    map<int,ChildNode*> child_node_container;
-    // template <typename Derived>
-    // map<int,SourceNode<Derived>*> source_container;
-    map<int,SourceNode*> source_container;
-    map<int,ChildNode*> output_container;
+    map<int,Consumer*> consumer_container;
+    map<int,Producer*> producer_container;
+    map<int,Node*> sink_container;
     map<int,vector<int>> update_path;
 };
 

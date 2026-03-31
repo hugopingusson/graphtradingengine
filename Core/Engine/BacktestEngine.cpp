@@ -21,11 +21,11 @@ BackTestStreamerContainer BacktestEngine::get_streamer_container() {
 }
 
 void BacktestEngine::build_streamer_container() {
-    if (this->graph->get_source_container().empty()) {
+    if (this->graph->get_producer_container().empty()) {
         this->logger->log_error("BacktestEngine","Cannot build streamer container, source container is empty");
         throw std::runtime_error("Error in BacktestEngine, cannot build streamer container, source container is empty");
     }
-    for (auto source : this->graph->get_source_container()) {
+    for (auto source : this->graph->get_producer_container()) {
         this->streamer_container.register_source(source.second);
     }
 
@@ -82,7 +82,7 @@ void BacktestEngine::run(const string& date) {
                     backtest_streamer->get_current_market_by_price_snapshot().order_book_snapshot_data);
 
 
-                dynamic_cast<MarketOrderBook*>(this->graph->get_source_container()[backtest_streamer->get_order_book_source_node_id()])->on_event(new_event);
+                dynamic_cast<MarketOrderBook*>(this->graph->get_producer_container()[backtest_streamer->get_order_book_source_node_id()])->on_event(new_event);
 
                 delete new_event;
 
@@ -98,7 +98,7 @@ void BacktestEngine::run(const string& date) {
                     backtest_streamer->get_current_market_by_price_snapshot().action_data.price,
                     backtest_streamer->get_current_market_by_price_snapshot().action_data.base_quantity);
 
-                dynamic_cast<MarketTrade*>(this->graph->get_source_container()[backtest_streamer->get_trade_source_node_id()])->on_event(new_event);
+                dynamic_cast<MarketTrade*>(this->graph->get_producer_container()[backtest_streamer->get_trade_source_node_id()])->on_event(new_event);
 
                 delete new_event;
 

@@ -113,6 +113,35 @@ double MarketOrderBook::bary() const {
 }
 
 
+
+
+bool MarketOrderBook::check_staleness(HeartBeatEvent& hb) {
+    if (hb.get_last_streamer_in_timestamp()-this->last_streamer_in_timestamp > 3*1e6) {
+        this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at ", this->name,this->time_helper.convert_nanoseconds_to_string(this->last_streamer_in_timestamp)));
+        this->valid=false;
+    }
+}
+
+
+void MarketOrderBook::update(BookLevel level, Side side, Action action) {
+    if (side==Side::BID) {
+        if (action==Action::CANCEL) {
+            bid_ladder.erase(level.price);
+        }
+        if (action==Action::ADD || action==Action::MODIFY) {
+            bid_ladder[level.price]=level;
+        }
+    }
+    if (side==Side::ASK) {
+        if (action==Action::CANCEL) {
+            ask_ladder.erase(level.price);
+        }
+        if (action==Action::ADD || action==Action::MODIFY) {
+            ask_ladder[level.price]=level;
+        }
+    }
+}
+
 bool MarketOrderBook::match(Order order) {
     if (order.action==Action::ADD) {
         if (order.side==Side::ASK) {
@@ -208,9 +237,6 @@ bool MarketOrderBook::match(Order order) {
 }
 
 
-
-
-
 // Double-dispatch entry
 void MarketOrderBook::on_event(Event* event) {
     if (!event) return;
@@ -219,10 +245,7 @@ void MarketOrderBook::on_event(Event* event) {
 
 // Handlers
 void MarketOrderBook::handle(HeartBeatEvent& hb) {
-    if (hb.get_last_streamer_in_timestamp()-this->last_streamer_in_timestamp > 3*1e6) {
-        this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at ", this->name,this->time_helper.convert_nanoseconds_to_string(this->last_streamer_in_timestamp)));
-        this->valid=false;
-    }
+    this->check_staleness(hb);
 }
 
 void MarketOrderBook::handle(MarketEvent& ev) {

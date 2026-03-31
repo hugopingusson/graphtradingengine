@@ -31,7 +31,7 @@ int main() {
     // Skew skew=Skew(&bary,&mid);
 
     // graph.add_source(&market_trade);
-    graph.add_source(&market);
+    graph.add_producer(&market);
     graph.add_edge(&market,&vwap);
 
 
