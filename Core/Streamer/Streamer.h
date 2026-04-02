@@ -33,36 +33,15 @@ public:
     virtual ~MarketStreamer() = default;
     MarketStreamer(const string& instrument, const string& exchange);
 
-    string get_instrument();
-    string get_exchange();
+    string get_instrument() const;
+    string get_exchange() const;
+    void set_order_book_source_node_id(const int& order_book_source_node_id);
+    int get_order_book_source_node_id() const;
 
 protected:
     string exchange;
     string instrument;
-};
-
-class OrderBookStreamer : virtual public MarketStreamer {
-public:
-    ~OrderBookStreamer() override = default;
-    OrderBookStreamer();
-
-    void set_order_book_source_node_id(const int& order_book_source_node_id);
-    int get_order_book_source_node_id();
-
-protected:
     int order_book_source_node_id;
-};
-
-class TradeStreamer : virtual public MarketStreamer {
-public:
-    ~TradeStreamer() override = default;
-    TradeStreamer();
-
-    void set_trade_source_node_id(const int& trade_source_node_id);
-    int get_trade_source_node_id();
-
-protected:
-    int trade_source_node_id;
 };
 
 class BacktestStreamer : public Streamer {
@@ -74,49 +53,31 @@ public:
     virtual bool advance() = 0;
     virtual bool is_good() const = 0;
     virtual HeapItem get_current_heap_item() = 0;
-
-    // Event remains the unique contract between streamer and graph.
-    virtual Event* materialize_event() = 0;
-    virtual int get_target_source_node_id() const = 0;
+    virtual void set_and_route(const Timestamp& start, const Timestamp& end)=0;
 
 protected:
     size_t id;
 };
 
-class DatabaseBacktestStreamer : public BacktestStreamer,
-                                 virtual public MarketStreamer,
-                                 virtual public OrderBookStreamer,
-                                 virtual public TradeStreamer {
+class DatabaseWMBPBacktestStreamer : public BacktestStreamer,
+                                     virtual public MarketStreamer {
 public:
-    DatabaseBacktestStreamer();
-    ~DatabaseBacktestStreamer() override = default;
-    DatabaseBacktestStreamer(const string& instrument, const string& exchange);
+    DatabaseWMBPBacktestStreamer();
+    ~DatabaseWMBPBacktestStreamer() override = default;
+    DatabaseWMBPBacktestStreamer(const string& instrument, const string& exchange);
 
-    string route_streamer(const string& date);
+    void set_and_route(const Timestamp& start, const Timestamp& end) override;
     string get_name() override;
-
+    // std::ifstream get_file();
     bool advance() override;
-    bool is_good() const override;
     HeapItem get_current_heap_item() override;
-    Event* materialize_event() override;
-    int get_target_source_node_id() const override;
+    bool is_good() const override;
 
-    MarketByPriceMessage get_current_market_by_price_message();
-    // Compatibility alias kept to avoid touching callers outside Streamer files.
-    MarketByPriceMessage get_current_market_by_price_snapshot();
-    MarketTimeStamp get_current_market_timestamp();
-    Action get_current_action() const;
-    Side get_current_side() const;
-    double get_current_price() const;
-    double get_current_base_quantity() const;
+    WideMarketByPriceMessage get_current_message() const;
 
 protected:
     std::ifstream file;
-    MarketByPriceMessage current_market_by_price_message;
-    Action current_action;
-    Side current_side;
-    double current_price;
-    double current_base_quantity;
+    WideMarketByPriceMessage current_message;
 };
 
 class HeartBeatBackTestStreamer : public BacktestStreamer {
@@ -126,19 +87,17 @@ public:
     explicit HeartBeatBackTestStreamer(const double& frequency);
 
     void set_heartbeat_source_node_id(const int& heartbeat_source_node_id);
+    void set_and_route(const Timestamp &start, const Timestamp &end) override;
     string get_name() override;
     double get_frequency();
-    int get_target_source_node_id() const override;
     bool advance() override;
     [[nodiscard]] bool is_good() const override;
     HeapItem get_current_heap_item() override;
-    Event* materialize_event() override;
 
 protected:
     double frequency;
     int heartbeat_source_node_id;
-    bool emitted_once;
-    MarketTimeStamp current_market_timestamp;
+    int64_t capture_in_server_timestamp;
 };
 
 class BackTestStreamerContainer {
@@ -152,10 +111,9 @@ public:
 
     void register_source(Producer* source_node);
     void register_market_orderbook_source(MarketOrderBook* market);
-    void register_market_trade_source(const string& instrument, const string& exchange, const int& node_id);
     void register_heartbeat_source(HeartBeat* heart_beat);
 
-    void route_all_streamers(const string& date);
+    void route_and_set_streamers(const Timestamp& start,const Timestamp& end);
 
 protected:
     size_t max_id;

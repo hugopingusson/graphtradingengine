@@ -118,6 +118,13 @@ struct Order {
     double size{};
 };
 
+struct Update {
+    std::string instrument;
+    MarketTimeStamp market_time_stamp;
+    BookLevel level;
+    Action action;
+    Side side;
+};
 
 struct MarketByOrderMessage {
     std::string instrument;
@@ -128,9 +135,7 @@ struct MarketByOrderMessage {
 struct MarketUpdateMessage {
     std::string instrument;
     MarketTimeStamp market_time_stamp;
-    BookLevel level;
-    Side side;
-    Action action;
+    Update update;
 };
 
 struct MarketByPriceMessage{
@@ -150,11 +155,11 @@ struct WideMarketByPriceMessage{
 #pragma pack(pop)
 
 struct HeapItem {
-    MarketTimeStamp row;
+    int64_t row;
     size_t file_id;
 
     bool operator>(const HeapItem& other) const {
-        return row.capture_server_in_timestamp > other.row.capture_server_in_timestamp;
+        return row > other.row;
     }
 };
 

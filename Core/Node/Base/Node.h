@@ -12,7 +12,6 @@
 #include "../../../Logger/Logger.h"
 #include "../../Graph/Event.h"
 #include "../../../Helper/TimeHelper.h"
-#include "../../Graph/EventHandler.h"
 
 using namespace std;
 
@@ -43,7 +42,6 @@ class Node {
     int64_t last_order_gateway_in_timestamp; //exchange timestamp
     int64_t last_capture_server_in_timestamp;
     bool valid;
-    TimeHelper time_helper;
     Logger* logger;
 
 

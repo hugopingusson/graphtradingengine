@@ -10,7 +10,6 @@ Node::Node() {
     name=string();
     logger=nullptr;
     node_id=int();
-    time_helper=TimeHelper();
 }
 
 Node::Node(const string& name) {
@@ -22,7 +21,6 @@ Node::Node(const string& name) {
     this->name=name;
     logger=nullptr;
     node_id=int();
-    time_helper=TimeHelper();
 }
 
 

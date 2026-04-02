@@ -117,7 +117,7 @@ double MarketOrderBook::bary() const {
 
 bool MarketOrderBook::check_staleness(HeartBeatEvent& hb) {
     if (hb.get_last_streamer_in_timestamp()-this->last_streamer_in_timestamp > 3*1e6) {
-        this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at ", this->name,this->time_helper.convert_nanoseconds_to_string(this->last_streamer_in_timestamp)));
+        this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at ", this->name,Timestamp::unix_to_string(this->last_streamer_in_timestamp)));
         this->valid=false;
     }
 }

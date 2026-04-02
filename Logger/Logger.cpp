@@ -37,7 +37,6 @@ Logger::Logger(const string& logger_name,const string& log_location,const string
 
 
 Logger::Logger(const string& logger_name,const string& log_location) {
-    TimeHelper time_helper = TimeHelper();
     if (!boost::filesystem::exists(log_location)) {
         throw std::runtime_error(fmt::format("log location {} does not exist on the machine"));
     }
@@ -46,7 +45,7 @@ Logger::Logger(const string& logger_name,const string& log_location) {
     }
 
     path log_location_(log_location);
-    this->log_folder=fmt::format("logs_{}",std::to_string(time_helper.now_second_resolution_int64()));
+    this->log_folder=fmt::format("logs_{}",std::to_string(Timestamp::now_unix(TimeResolution::seconds)));
     path log_folder_(this->log_folder);
 
 
