@@ -139,6 +139,12 @@ struct MarketByPriceMessage{
     SnapshotData order_book_snapshot_data;
 };
 
+struct WideMarketByPriceMessage{
+    std::string instrument;
+    MarketTimeStamp market_time_stamp;
+    SnapshotData order_book_snapshot_data;
+    Order order;
+};
 
 
 #pragma pack(pop)
