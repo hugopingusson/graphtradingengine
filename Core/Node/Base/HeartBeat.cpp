@@ -17,6 +17,7 @@ double HeartBeat::get_frequency() const {
 // void HeartBeat::handle(HeartBeatEvent& heart_beat_event) {
 void HeartBeat::on_event(Event* event) {
     HeartBeatEvent* heart_beat_event = dynamic_cast<HeartBeatEvent*>(event);
-    this->last_streamer_in_timestamp=heart_beat_event->get_last_streamer_in_timestamp();
+    this->last_streamer_in_timestamp = heart_beat_event->get_streamer_in_timestamp();
+    this->last_capture_server_in_timestamp = heart_beat_event->get_capture_server_in_timestamp();
 
 }

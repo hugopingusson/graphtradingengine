@@ -26,7 +26,8 @@ class BacktestEngine {
     void initialize();
     void build_streamer_container();
 
-    void run(const string& date);
+    // void run(const string& date);
+    void run(const Timestamp& start, const Timestamp& end);
 
     protected:
     Graph* graph;

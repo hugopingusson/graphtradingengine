@@ -45,6 +45,7 @@ struct SnapshotData{
 struct BookLevel {
     double price{};
     double size{};
+    double amount{};
     int    count{}; // nombre d'ordres à ce niveau (optionnel)
 };
 
@@ -86,7 +87,7 @@ inline void snapshot_to_ladder(const SnapshotData& snap, BidLadder& bids, AskLad
         double p = snap.bid_price[i];
         double s = snap.bid_size[i];
         if (p > 0.0 && s > 0.0) {
-            bids[p] = BookLevel{p, s, 0};
+            bids[p] = BookLevel{p, s, p*s,0};
         }
     }
 
@@ -95,7 +96,7 @@ inline void snapshot_to_ladder(const SnapshotData& snap, BidLadder& bids, AskLad
         double p = snap.ask_price[i];
         double s = snap.ask_size[i];
         if (p > 0.0 && s > 0.0) {
-            asks[p] = BookLevel{p, s, 0};
+            asks[p] = BookLevel{p, s, p*s,0};
         }
     }
 }
@@ -127,25 +128,21 @@ struct Update {
 };
 
 struct MarketByOrderMessage {
-    std::string instrument;
     MarketTimeStamp market_time_stamp;
     Order order;
 };
 
 struct MarketUpdateMessage {
-    std::string instrument;
     MarketTimeStamp market_time_stamp;
     Update update;
 };
 
 struct MarketByPriceMessage{
-    std::string instrument;
     MarketTimeStamp market_time_stamp;
     SnapshotData order_book_snapshot_data;
 };
 
 struct WideMarketByPriceMessage{
-    std::string instrument;
     MarketTimeStamp market_time_stamp;
     SnapshotData order_book_snapshot_data;
     Order order;

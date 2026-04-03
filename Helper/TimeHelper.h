@@ -13,13 +13,14 @@
 using namespace std::chrono;
 
 using namespace std;
-enum class TimeResolution : std::int32_t { seconds=0, nanoseconds=1};
+enum class Resolution : std::int32_t { seconds=0, nanoseconds=1};
+using TimeResolution = Resolution;
 
 class Date {
     public:
     Date(const int& year, const int& month, const int& day);
 
-    int64_t unixtime() const;
+    int64_t unixtime(Resolution resolution = Resolution::nanoseconds) const;
     string to_string() const;
 
     private:
@@ -31,7 +32,7 @@ class Time {
     public:
     Time(const int& hour, const int& minute, const int& second);
 
-    int64_t unixtime() const;
+    int64_t unixtime(Resolution resolution = Resolution::nanoseconds) const;
     string to_string() const;
 
     private:
@@ -50,9 +51,9 @@ class Timestamp {
     Date get_date() const;
     Time get_time() const;
 
-    int64_t unixtime() const;
-    static int64_t now_unix(const TimeResolution& time_resolution);
-    static int64_t unix_to_string(const int64_t& unix_timestamp);
+    int64_t unixtime(Resolution resolution = Resolution::nanoseconds) const;
+    static int64_t now_unix(Resolution time_resolution = Resolution::nanoseconds);
+    static string unix_to_string(const int64_t& unix_timestamp);
 
 
     private:

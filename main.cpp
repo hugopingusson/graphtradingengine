@@ -13,39 +13,33 @@
 #include "Core/Node/Signals/MathSignal.h"
 #include "Core/Node/Signals/OrderBookSignal.h"
 #include "Core/Streamer/Streamer.h"
+#include "Data/DataReader/CMEParquetToBin.h"
+#include "Data/DataReader/CryptolakeParquetToBin.h"
 #include "Data/DataStructure/DataStructure.h"
 
 
-
 int main() {
+    // CMEParquetToBin().convert_all_to_bin();
+
     Logger logger = Logger("MainLogger","/home/hugo/gte_logs");
     Graph graph=Graph(&logger);
-    MarketOrderBook market=MarketOrderBook("EURUSD","cme",5,1e-5);
+    MarketOrderBook market=MarketOrderBook("BTCUSDT","binance",5,1e-5);
     // MarketTrade market_trade = MarketTrade("EURUSD","cme");
 
+    // HeartBeat heart_beat=HeartBeat(1);
+    Vwap vwap = Vwap(&market,10000);
 
-    Vwap vwap = Vwap(&market,10);
 
-    // Mid mid = Mid(&market);
-    // Bary bary=Bary(&market);
-    // Skew skew=Skew(&bary,&mid);
-
-    // graph.add_source(&market_trade);
     graph.add_producer(&market);
     graph.add_edge(&market,&vwap);
 
-
-
-    // graph.add_edge(&market,&mid);
-    // graph.add_edge(&market,&bary);
-
-    // graph.add_edge(&bary,&skew);
-    // graph.add_edge(&mid,&skew);
-
-
     BacktestEngine  backtest_engine = BacktestEngine(&logger,&graph);
     backtest_engine.initialize();
-    backtest_engine.run("2024-04-30");
+
+    Timestamp start =Timestamp(Date(2023,04,30),Time(12,0,0));
+    Timestamp end =Timestamp(Date(2023,04,30),Time(14,0,0));
+
+    backtest_engine.run(start,end);
 
     cout<<"Done"<<endl;
 

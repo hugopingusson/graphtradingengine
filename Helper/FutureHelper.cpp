@@ -61,7 +61,8 @@ std::string FutureHelper::get_liquid_contract(const std::string& date) {
     boost::gregorian::date boost_date = boost::gregorian::date(from_simple_string(date));
     FutureInfo future_info = FutureInfo();
 
-    std::string contract_code=future_info.contract_code.at(this->pair);
+    // std::string contract_code=future_info.contract_code.at(this->pair);
+    std::string contract_code=this->pair;
     std::string contract_schema;
 
 

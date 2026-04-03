@@ -5,7 +5,7 @@
 #include "BacktestEngine.h"
 
 
-BacktestEngine::BacktestEngine():logger(),graph() {}
+BacktestEngine::BacktestEngine():graph(),logger() {}
 BacktestEngine::BacktestEngine(Logger* logger,Graph* graph):graph(graph),logger(logger),streamer_container(BackTestStreamerContainer(logger)){}
 
 Graph* BacktestEngine::get_graph() {
@@ -50,72 +50,45 @@ void BacktestEngine::initialize() {
 
 
 
-void BacktestEngine::run(const string& date) {
+void BacktestEngine::run(const Timestamp& start, const Timestamp& end){
 
     this->logger->log_info("BacktestEngine","Routing streamers");
-    this->streamer_container.route_all_streamers(date);
+    this->streamer_container.route_and_set_streamers(start,end);
 
     std::priority_queue<HeapItem, std::vector<HeapItem>, std::greater<>> min_heap;
 
     this->logger->log_info("BacktestEngine","ENGINE RUNNING");
 
 
-    for (auto streamer : this->streamer_container.get_streamers()) {
-        if (streamer.second->is_good()) {
+    auto& streamers = this->streamer_container.get_streamers();
+
+    for (const auto& streamer : streamers) {
+        if (streamer.second && streamer.second->is_good()) {
             min_heap.push(streamer.second->get_current_heap_item());
         }
     }
     cout<<"BackestEngine running..."<<endl;
     while (!min_heap.empty()) {
-        HeapItem smallest = min_heap.top();
+        const HeapItem smallest = min_heap.top();
         min_heap.pop();
-        size_t id = smallest.file_id;
+        const size_t id = smallest.file_id;
 
-        if (typeid(*this->streamer_container.get_streamers()[id])==typeid(DatabaseBacktestStreamer)) {
-            DatabaseBacktestStreamer* backtest_streamer = dynamic_cast<DatabaseBacktestStreamer*>(this->streamer_container.get_streamers()[id]);
+        // auto streamer_it = streamers.find(id);
+        // if (streamer_it == streamers.end() || !streamer_it->second) {
+        //     continue;
+        // }
 
-            if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action!=Action::TRADE && backtest_streamer->get_order_book_source_node_id()>0) {
-
-                OrderBookSnapshotEvent* new_event=new OrderBookSnapshotEvent(backtest_streamer->get_current_market_timestamp(),
-                    0,
-                    backtest_streamer->get_order_book_source_node_id(),
-                    backtest_streamer->get_current_market_by_price_snapshot().order_book_snapshot_data);
+        BacktestStreamer* streamer = streamers.find(id)->second;
+        streamer->process_current(this->graph);
 
 
-                dynamic_cast<MarketOrderBook*>(this->graph->get_producer_container()[backtest_streamer->get_order_book_source_node_id()])->on_event(new_event);
-
-                delete new_event;
-
-                this->graph->update(backtest_streamer->get_order_book_source_node_id());
-
-            }
-
-            if (backtest_streamer->get_current_market_by_price_snapshot().action_data.action==Action::TRADE && backtest_streamer->get_trade_source_node_id()>0) {
-                TradeEvent* new_event = new TradeEvent(backtest_streamer->get_current_market_timestamp(),
-                    0,
-                    backtest_streamer->get_trade_source_node_id(),
-                    backtest_streamer->get_current_market_by_price_snapshot().action_data.side,
-                    backtest_streamer->get_current_market_by_price_snapshot().action_data.price,
-                    backtest_streamer->get_current_market_by_price_snapshot().action_data.base_quantity);
-
-                dynamic_cast<MarketTrade*>(this->graph->get_producer_container()[backtest_streamer->get_trade_source_node_id()])->on_event(new_event);
-
-                delete new_event;
-
-                this->graph->update(backtest_streamer->get_trade_source_node_id());
-
-            }
-        }
-
-        if (this->streamer_container.get_streamers()[id]->advance()) {
-            min_heap.push(this->streamer_container.get_streamers()[id]->get_current_heap_item());
+        if (streamer->advance()) {
+            min_heap.push(streamer->get_current_heap_item());
         }
     }
 
     cout<<"BacktestEngine end"<<endl;
 }
-
-
 
 
 

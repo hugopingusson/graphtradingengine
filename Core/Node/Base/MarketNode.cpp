@@ -24,11 +24,11 @@ MarketOrderBook::MarketOrderBook():depth(),tick_value(){};
 MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value):Node(fmt::format("MarketOrderBook(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),depth(depth),tick_value(tick_value){};
 
 
-AskLadder MarketOrderBook::get_ask_ladder() {
+const AskLadder& MarketOrderBook::get_ask_ladder() const {
     return this->ask_ladder;
 }
 
-BidLadder MarketOrderBook::get_bid_ladder() {
+const BidLadder& MarketOrderBook::get_bid_ladder() const {
     return this->bid_ladder;
 }
 
@@ -116,7 +116,7 @@ double MarketOrderBook::bary() const {
 
 
 bool MarketOrderBook::check_staleness(HeartBeatEvent& hb) {
-    if (hb.get_last_streamer_in_timestamp()-this->last_streamer_in_timestamp > 3*1e6) {
+    if (hb.get_streamer_in_timestamp() - this->last_streamer_in_timestamp > 3*1e6) {
         this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at ", this->name,Timestamp::unix_to_string(this->last_streamer_in_timestamp)));
         this->valid=false;
     }
@@ -234,6 +234,7 @@ bool MarketOrderBook::match(Order order) {
 
     }
 
+
 }
 
 
@@ -254,26 +255,25 @@ void MarketOrderBook::handle(MarketEvent& ev) {
 
 // Specific handler for OrderBookSnapshotEvent
 void MarketOrderBook::handle(MBPEvent& mbp_event) {
-    this->last_streamer_in_timestamp = mbp_event.get_last_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = mbp_event.get_last_market_timestamp().capture_server_in_timestamp;
+    this->last_streamer_in_timestamp = mbp_event.get_streamer_in_timestamp();
+    this->last_capture_server_in_timestamp = mbp_event.get_capture_server_in_timestamp();
     this->last_order_gateway_in_timestamp = mbp_event.get_last_market_timestamp().order_gateway_in_timestamp;
     snapshot_to_ladder(mbp_event.get_snapshot_data(),this->bid_ladder,this->ask_ladder);
     this->valid=check_snapshot();
 }
 
 void MarketOrderBook::handle(MBOEvent& mbo_event) {
-    this->last_streamer_in_timestamp = mbo_event.get_last_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = mbo_event.get_last_market_timestamp().capture_server_in_timestamp;
+    this->last_streamer_in_timestamp = mbo_event.get_streamer_in_timestamp();
+    this->last_capture_server_in_timestamp = mbo_event.get_capture_server_in_timestamp();
     this->last_order_gateway_in_timestamp = mbo_event.get_last_market_timestamp().order_gateway_in_timestamp;
-    this->match(mbo_event.get_order());
-    this->valid=check_snapshot();
+    this->valid=this->match(mbo_event.get_order());
 }
 
 void MarketOrderBook::handle(UpdateEvent& update_event) {
-    this->last_streamer_in_timestamp = update_event.get_last_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = update_event.get_last_market_timestamp().capture_server_in_timestamp;
+    this->last_streamer_in_timestamp = update_event.get_streamer_in_timestamp();
+    this->last_capture_server_in_timestamp = update_event.get_capture_server_in_timestamp();
     this->last_order_gateway_in_timestamp = update_event.get_last_market_timestamp().order_gateway_in_timestamp;
-    this->update(update_event.get_book_level(),update_event.get_side(),update_event.get_action());
+    this->update(update_event.get_update().level,update_event.get_update().side,update_event.get_update().action);
     this->valid=check_snapshot();
 }
 
@@ -282,27 +282,27 @@ void MarketOrderBook::handle(UpdateEvent& update_event) {
 
 bool MarketOrderBook::check_snapshot() {
   if (this->get_best_ask_price()==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("ask price received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("ask price received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
   if (this->get_best_bid_price()==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("bid price received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("bid price received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
   if (this->get_best_ask_size()==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("ask size received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("ask size received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
   if (this->get_best_bid_size()==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("bid size received @ {} by {} is 0, setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    this->logger->log_error("MarketOrderBook",fmt::format("bid size received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
     return false;
   }
 
   if (this->get_best_bid_price()>=this->get_best_ask_price()){
-    this->logger->log_error("MarketOrderBook",fmt::format("snapshot received @ {} by {} show bid={}>=ask={} , setting to invalid",time_helper.convert_nanoseconds_to_string(this->get_last_order_gateway_in_timestamp()),this->name,this->get_best_bid_price(),this->get_best_ask_price()));
+    this->logger->log_error("MarketOrderBook",fmt::format("snapshot received @ {} by {} show bid={}>=ask={} , setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name,this->get_best_bid_price(),this->get_best_ask_price()));
   	return false;
   }
 

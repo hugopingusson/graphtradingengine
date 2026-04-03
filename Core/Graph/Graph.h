@@ -23,7 +23,7 @@ class Graph {
     Logger* get_logger();
     map<int,vector<int>> get_adjacency_map();
     map<int,Consumer*> get_consumer_container();
-    map<int,Producer*> get_producer_container();
+    const map<int,Producer*>& get_producer_container() const;
     map<int,Node*> get_sink_container();
     map<int,vector<int>> get_update_path();
 

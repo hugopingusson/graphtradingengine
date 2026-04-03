@@ -55,21 +55,48 @@ uint64_t magnitude_u64(const int64_t value) {
     return static_cast<uint64_t>(-(value + 1)) + 1ULL;
 }
 
-int64_t unix_to_epoch_seconds(const int64_t unix_timestamp) {
+struct EpochParts {
+    int64_t seconds;
+    int32_t nanoseconds;
+};
+
+EpochParts normalize_epoch_parts(int64_t seconds, int64_t nanoseconds) {
+    if (nanoseconds >= 1000000000LL || nanoseconds <= -1000000000LL) {
+        seconds += nanoseconds / 1000000000LL;
+        nanoseconds %= 1000000000LL;
+    }
+    if (nanoseconds < 0) {
+        nanoseconds += 1000000000LL;
+        --seconds;
+    }
+    return {seconds, static_cast<int32_t>(nanoseconds)};
+}
+
+EpochParts unix_to_epoch_parts(const int64_t unix_timestamp) {
     const uint64_t abs_ts = magnitude_u64(unix_timestamp);
 
     // Heuristic by order of magnitude:
     // s: 1e9, ms: 1e12, us: 1e15, ns: 1e18
     if (abs_ts < 100000000000ULL) { // < 1e11
-        return unix_timestamp;
+        return {unix_timestamp, 0};
     }
     if (abs_ts < 100000000000000ULL) { // < 1e14
-        return unix_timestamp / 1000LL;
+        const int64_t seconds = unix_timestamp / 1000LL;
+        const int64_t rem_ms = unix_timestamp % 1000LL;
+        return normalize_epoch_parts(seconds, rem_ms * 1000000LL);
     }
     if (abs_ts < 100000000000000000ULL) { // < 1e17
-        return unix_timestamp / 1000000LL;
+        const int64_t seconds = unix_timestamp / 1000000LL;
+        const int64_t rem_us = unix_timestamp % 1000000LL;
+        return normalize_epoch_parts(seconds, rem_us * 1000LL);
     }
-    return unix_timestamp / 1000000000LL;
+    const int64_t seconds = unix_timestamp / 1000000000LL;
+    const int64_t rem_ns = unix_timestamp % 1000000000LL;
+    return normalize_epoch_parts(seconds, rem_ns);
+}
+
+int64_t unix_to_epoch_seconds(const int64_t unix_timestamp) {
+    return unix_to_epoch_parts(unix_timestamp).seconds;
 }
 }
 
@@ -82,7 +109,7 @@ Date::Date(const int& year, const int& month, const int& day) : year(year), mont
     }
 }
 
-int64_t Date::unixtime() const {
+int64_t Date::unixtime(Resolution resolution) const {
     std::tm tm = {};
     tm.tm_year = year - 1900;
     tm.tm_mon = month - 1;
@@ -96,7 +123,11 @@ int64_t Date::unixtime() const {
     if (epoch_seconds == static_cast<std::time_t>(-1)) {
         throw std::runtime_error("Date::unixtime failed");
     }
-    return static_cast<int64_t>(epoch_seconds);
+    const int64_t epoch_seconds_i64 = static_cast<int64_t>(epoch_seconds);
+    if (resolution == Resolution::seconds) {
+        return epoch_seconds_i64;
+    }
+    return epoch_seconds_i64 * 1000000000LL;
 }
 
 string Date::to_string() const {
@@ -113,8 +144,14 @@ Time::Time(const int& hour, const int& minute, const int& second) : hour(hour), 
     }
 }
 
-int64_t Time::unixtime() const {
-    return static_cast<int64_t>(hour) * 3600 + static_cast<int64_t>(minute) * 60 + static_cast<int64_t>(second);
+int64_t Time::unixtime(Resolution resolution) const {
+    const int64_t time_seconds = static_cast<int64_t>(hour) * 3600
+        + static_cast<int64_t>(minute) * 60
+        + static_cast<int64_t>(second);
+    if (resolution == Resolution::seconds) {
+        return time_seconds;
+    }
+    return time_seconds * 1000000000LL;
 }
 
 string Time::to_string() const {
@@ -160,21 +197,21 @@ Timestamp::Timestamp(const int64_t& unix_timestamp) : date(1970, 1, 1), time(0, 
     this->time = Time(tm_ptr->tm_hour, tm_ptr->tm_min, tm_ptr->tm_sec);
 }
 
-int64_t Timestamp::unixtime() const {
-    return this->date.unixtime() + this->time.unixtime();
+int64_t Timestamp::unixtime(Resolution resolution) const {
+    return this->date.unixtime(resolution) + this->time.unixtime(resolution);
 }
 
-int64_t Timestamp::now_unix(const TimeResolution& time_resolution) {
+int64_t Timestamp::now_unix(Resolution time_resolution) {
     const auto now = std::chrono::system_clock::now();
-    if (time_resolution == TimeResolution::seconds) {
+    if (time_resolution == Resolution::seconds) {
         return static_cast<int64_t>(std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count());
     }
     return static_cast<int64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count());
 }
 
-int64_t Timestamp::unix_to_string(const int64_t& unix_timestamp) {
-    const int64_t epoch_seconds_i64 = unix_to_epoch_seconds(unix_timestamp);
-    const std::time_t epoch_seconds = static_cast<std::time_t>(epoch_seconds_i64);
+string Timestamp::unix_to_string(const int64_t& unix_timestamp) {
+    const EpochParts parts = unix_to_epoch_parts(unix_timestamp);
+    const std::time_t epoch_seconds = static_cast<std::time_t>(parts.seconds);
     std::tm* tm_ptr = std::localtime(&epoch_seconds);
     if (tm_ptr == nullptr) {
         throw std::runtime_error("Timestamp::unix_to_string failed");
@@ -182,13 +219,14 @@ int64_t Timestamp::unix_to_string(const int64_t& unix_timestamp) {
 
     std::ostringstream oss;
     oss << std::setfill('0')
-        << std::setw(4) << (tm_ptr->tm_year + 1900)
-        << std::setw(2) << (tm_ptr->tm_mon + 1)
-        << std::setw(2) << tm_ptr->tm_mday
-        << std::setw(2) << tm_ptr->tm_hour
-        << std::setw(2) << tm_ptr->tm_min
-        << std::setw(2) << tm_ptr->tm_sec;
-    return std::stoll(oss.str());
+        << std::setw(4) << (tm_ptr->tm_year + 1900) << "-"
+        << std::setw(2) << (tm_ptr->tm_mon + 1) << "-"
+        << std::setw(2) << tm_ptr->tm_mday << " "
+        << std::setw(2) << tm_ptr->tm_hour << ":"
+        << std::setw(2) << tm_ptr->tm_min << ":"
+        << std::setw(2) << tm_ptr->tm_sec << "."
+        << std::setw(9) << parts.nanoseconds;
+    return oss.str();
 }
 
 Date Timestamp::get_date() const {return this->date;}

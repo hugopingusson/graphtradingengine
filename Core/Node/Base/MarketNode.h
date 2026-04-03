@@ -47,8 +47,8 @@ class MarketOrderBook:public Market  {
     MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
     // MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value,HeartBeat* heart_beat_node);
 
-    AskLadder get_ask_ladder();
-    BidLadder get_bid_ladder();
+    const AskLadder& get_ask_ladder() const;
+    const BidLadder& get_bid_ladder() const;
 
     double get_best_ask_price() const;
     double get_best_bid_price() const;

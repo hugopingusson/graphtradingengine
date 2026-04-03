@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include "../../Helper/DataBaseHelper.h"
+#include "../Graph/Graph.h"
 
 namespace {
 #pragma pack(push, 1)
@@ -72,7 +73,7 @@ void DatabaseWMBPBacktestStreamer::set_and_route(const Timestamp& start, const T
         throw std::runtime_error(fmt::format("Error when routing streamer {}, cannot open bin file {}", this->get_name(), data_path));
     }
     int64_t start_ts = start.unixtime();
-    while (this->get_current_heap_item().row<start_ts) {
+    while (this->get_current_heap_item().row < start_ts) {
         this->advance();
     }
     // return data_path;
@@ -92,7 +93,6 @@ bool DatabaseWMBPBacktestStreamer::advance() {
         return false;
     }
 
-    this->current_message.instrument = this->instrument;
     this->current_message.market_time_stamp = row.market_time_stamp;
     this->current_message.order_book_snapshot_data = row.order_book_snapshot_data;
     this->current_message.order = row.order;
@@ -107,14 +107,32 @@ bool DatabaseWMBPBacktestStreamer::is_good() const {
     return this->file.is_open() && this->file.good();
 }
 
+void DatabaseWMBPBacktestStreamer::process_current(Graph* graph) {
+    MarketByPriceMessage message;
+    message.market_time_stamp = this->current_message.market_time_stamp;
+    message.order_book_snapshot_data = this->current_message.order_book_snapshot_data;
+
+    MBPEvent event(
+        this->instrument,
+        this->current_message.market_time_stamp,
+        this->current_message.market_time_stamp.capture_server_in_timestamp,
+        this->current_message.market_time_stamp.capture_server_in_timestamp,
+        this->order_book_source_node_id,
+        message
+    );
+
+    graph->get_producer_container().find(this->order_book_source_node_id)->second->on_event(&event);
+    graph->update(this->order_book_source_node_id);
+}
+
 WideMarketByPriceMessage DatabaseWMBPBacktestStreamer::get_current_message() const {
     return this->current_message;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-HeartBeatBackTestStreamer::HeartBeatBackTestStreamer():frequency(),heartbeat_source_node_id(),capture_in_server_timestamp(){};
-HeartBeatBackTestStreamer::HeartBeatBackTestStreamer(const double& frequency):frequency(frequency),heartbeat_source_node_id(),capture_in_server_timestamp(){};
+HeartBeatBackTestStreamer::HeartBeatBackTestStreamer():frequency(),heartbeat_source_node_id(),capture_in_server_timestamp(),end_capture_in_server_timestamp(){};
+HeartBeatBackTestStreamer::HeartBeatBackTestStreamer(const double& frequency):frequency(frequency),heartbeat_source_node_id(),capture_in_server_timestamp(),end_capture_in_server_timestamp(){};
 
 string HeartBeatBackTestStreamer::get_name() {
     return fmt::format("HeartBeatBackTestStreamer(frequency={})",std::to_string(frequency));
@@ -129,16 +147,49 @@ void HeartBeatBackTestStreamer::set_heartbeat_source_node_id(const int& heartbea
 }
 
 bool HeartBeatBackTestStreamer::advance() {
-    this->capture_in_server_timestamp+=this->frequency;
+    if (this->capture_in_server_timestamp >= this->end_capture_in_server_timestamp) {
+        return false;
+    }
+    this->capture_in_server_timestamp += int64_t(1e9 * this->frequency);
+    return this->capture_in_server_timestamp <= this->end_capture_in_server_timestamp;
 }
 
 bool HeartBeatBackTestStreamer::is_good() const {
-    return true;
+    return this->capture_in_server_timestamp <= this->end_capture_in_server_timestamp;
 }
 
 HeapItem HeartBeatBackTestStreamer::get_current_heap_item() {
     return {this->capture_in_server_timestamp,this->id};
 }
+
+
+void HeartBeatBackTestStreamer::set_and_route(const Timestamp &start, const Timestamp &end) {
+    this->capture_in_server_timestamp=start.unixtime();
+    this->end_capture_in_server_timestamp=end.unixtime();
+}
+
+void HeartBeatBackTestStreamer::process_current(Graph* graph) {
+    if (!graph || this->heartbeat_source_node_id <= 0) {
+        return;
+    }
+
+    const auto& producers = graph->get_producer_container();
+    auto producer_it = producers.find(this->heartbeat_source_node_id);
+    if (producer_it == producers.end() || !producer_it->second) {
+        return;
+    }
+
+    HeartBeatEvent event(
+        this->capture_in_server_timestamp,
+        this->capture_in_server_timestamp,
+        this->heartbeat_source_node_id,
+        this->frequency
+    );
+    producer_it->second->on_event(&event);
+    graph->update(this->heartbeat_source_node_id);
+
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -226,6 +277,9 @@ void BackTestStreamerContainer::register_market_orderbook_source(MarketOrderBook
     new_streamer->set_id(this->max_id);
     new_streamer->set_order_book_source_node_id(market->get_node_id());
     this->streamers[max_id]=new_streamer;
+
+
+
 }
 
 void BackTestStreamerContainer::route_and_set_streamers(const Timestamp &start, const Timestamp &end) {

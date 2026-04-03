@@ -20,6 +20,8 @@
 using namespace std;
 using namespace fmt;
 
+class Graph;
+
 class Streamer {
 public:
     virtual ~Streamer() = default;
@@ -54,6 +56,7 @@ public:
     virtual bool is_good() const = 0;
     virtual HeapItem get_current_heap_item() = 0;
     virtual void set_and_route(const Timestamp& start, const Timestamp& end)=0;
+    virtual void process_current(Graph* graph)=0;
 
 protected:
     size_t id;
@@ -72,6 +75,7 @@ public:
     bool advance() override;
     HeapItem get_current_heap_item() override;
     bool is_good() const override;
+    void process_current(Graph* graph) override;
 
     WideMarketByPriceMessage get_current_message() const;
 
@@ -93,11 +97,13 @@ public:
     bool advance() override;
     [[nodiscard]] bool is_good() const override;
     HeapItem get_current_heap_item() override;
+    void process_current(Graph* graph) override;
 
 protected:
     double frequency;
     int heartbeat_source_node_id;
     int64_t capture_in_server_timestamp;
+    int64_t end_capture_in_server_timestamp;
 };
 
 class BackTestStreamerContainer {

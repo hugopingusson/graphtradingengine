@@ -67,10 +67,10 @@ public:
     void mark_dirty();
     void clear_dirty();
 
-    bool update();
+    virtual bool update()=0;
 
     // forward exécute le calcul et retourne true si l'état a changé (valeur/validité), false sinon
-    virtual bool forward() = 0;
+    // virtual bool forward() = 0;
 
 protected:
     bool dirty;
@@ -96,7 +96,8 @@ class Quote : public Consumer {
     double mid();
     double spread();
 
-    bool forward() override = 0;
+    // bool forward() override = 0;
+    bool update() override = 0;
 
     protected:
     double ask_price;
@@ -114,8 +115,8 @@ public:
 
 
 
-    virtual double compute()=0;
-    bool forward() override;
+    virtual void compute()=0;
+    bool update() override;
 
     [[nodiscard]] double get_value() const;
 

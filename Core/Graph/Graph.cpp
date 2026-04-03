@@ -58,7 +58,7 @@ map<int,Consumer*> Graph::get_consumer_container() {
 
 // template <typename Derived>
 // map<int,SourceNode<Derived>*> Graph::get_source_container() {
-map<int,Producer*> Graph::get_producer_container() {
+const map<int,Producer*>& Graph::get_producer_container() const {
     return this->producer_container;
 }
 
@@ -258,10 +258,10 @@ void Graph::update(const int& source_id) {
                     consumer_container[consumer_id]->mark_dirty();
                 }
             }
+            this->consumer_container[node_id]->clear_dirty();
         }
     }
 }
-
 
 
 

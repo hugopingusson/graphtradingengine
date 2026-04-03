@@ -61,6 +61,26 @@ void Node::set_node_id(const int& node_id) {
     this->node_id=node_id;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Producer::Producer() = default;
+
+Consumer::Consumer() : dirty(false) {}
+
+bool Consumer::is_dirty() const {
+    return this->dirty;
+}
+
+void Consumer::mark_dirty() {
+    this->dirty = true;
+}
+
+void Consumer::clear_dirty() {
+    this->dirty = false;
+}
+
+ProducerConsumer::ProducerConsumer() = default;
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 Quote::Quote(): ask_price(),bid_price(){};
@@ -104,42 +124,30 @@ Node* SingleInputConsumer::get_parent() const {
     return this->parent;
 }
 
-bool SingleInputConsumer::forward() {
-    if (this->valid) {
-        if (!this->parent->is_valid()) {
-            this->valid=false;
-            return true;
-        }
-        else {
-            double last_value=this->value;
-            this->compute();
-            if (this->valid) {
-                if (last_value!=this->value) {
-                    return true;
-                }
-                else {
-                    return false;
-                }
-            }
-            else {
-                return true;
-            }
-        }
+bool SingleInputConsumer::update() {
+    if (!this->parent) {
+        const bool was_valid = this->valid;
+        this->valid = false;
+        return was_valid;
     }
-    else {
-        if (!this->parent->is_valid()) {
-            return false;
-        }
-        else {
-            this->compute();
-            if (this->valid) {
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
+
+    if (!this->parent->is_valid()) {
+        const bool was_valid = this->valid;
+        this->valid = false;
+        return was_valid;
     }
+
+    const bool was_valid = this->valid;
+    const double last_value = this->value;
+    this->compute();
+
+    if (this->valid != was_valid) {
+        return true;
+    }
+    if (!this->valid) {
+        return false;
+    }
+    return this->value != last_value;
 }
 
 

@@ -4,98 +4,128 @@
 
 #include "OrderBookSignal.h"
 
+#include <algorithm>
+#include <cmath>
 #include <fmt/format.h>
 
 
-Mid::Mid(){}
+Mid::Mid():SingleInputConsumer(),market(nullptr) {}
 
-Mid::Mid(MarketOrderBook* market) {
-    this->parent=market;
+Mid::Mid(MarketOrderBook* market):SingleInputConsumer(market),market(market) {
     this->name=fmt::format("Mid({}@{})",market->get_instrument(),market->get_exchange());
     this->mark_dirty();
 }
 
 void Mid::compute() {
-    if (this->parent && this->parent->is_valid()) {
-        this->value = dynamic_cast<MarketOrderBook*>(this->parent)->mid();
-        this->clear_dirty();
-    } else {
-        this->mark_dirty();
+    if (!this->market) {
+        this->value = std::nan("");
+        this->valid = false;
+        return;
     }
+
+    this->value = this->market->mid();
+    this->valid = !std::isnan(this->value);
 }
 
-Bary::Bary()= default;
+Bary::Bary():SingleInputConsumer(),market(nullptr) {}
 
-Bary::Bary(MarketOrderBook* market) {
-    this->parent=market;
+Bary::Bary(MarketOrderBook* market):SingleInputConsumer(market),market(market) {
     this->name=fmt::format("Bary({}@{})",market->get_instrument(),market->get_exchange());
     this->mark_dirty();
 }
 
 void Bary::compute() {
-    if (this->parent && this->parent->is_valid()) {
-        this->value = dynamic_cast<MarketOrderBook*>(this->parent)->bary();
-        this->clear_dirty();
-    } else {
-        this->mark_dirty();
+    if (!this->market) {
+        this->value = std::nan("");
+        this->valid = false;
+        return;
     }
+
+    this->value = this->market->bary();
+    this->valid = !std::isnan(this->value);
 }
 
+Vwap::Vwap():SingleInputConsumer(),market(nullptr),amount(0.0),ask_vwap(std::nan("")),bid_vwap(std::nan("")) {}
 
-
-Vwap::Vwap()=default;
-
-Vwap::Vwap(MarketOrderBook *market,double const& size) {
-    this->market=market;
-    this->size=size;
-    this->name=fmt::format("Vwap({}@{};size={})",market->get_instrument(),market->get_exchange(),size);
+Vwap::Vwap(MarketOrderBook *market,double const& amount):SingleInputConsumer(market),market(market),amount(amount),ask_vwap(std::nan("")),bid_vwap(std::nan("")) {
+    this->name=fmt::format("Vwap({}@{};amount={})",market->get_instrument(),market->get_exchange(),amount);
     this->mark_dirty();
 }
 
 void Vwap::compute() {
-    if (!this->market || !this->market->is_valid()) {
-        this->mark_dirty();
-        return;
-    }
-    double ask=0;
-    double bid=0;
-
-    double ask_size=0;
-    double bid_size=0;
-
-    int i_ask=0;
-    while (i_ask<=this->market->get_depth()-1 && ask_size<this->size) {
-        ask+=this->market->ask_price(i_ask)*min(this->size-ask_size,this->market->ask_size(i_ask));
-        ask_size+=min(this->size-ask_size,this->market->ask_size(i_ask));
-        i_ask++;
-    }
-
-    // if (ask_size < this->size) {
-    //     this->logger->log_info("Vwap",fmt::format("maximum depth reached on ask, total volume available = {}",market->cumulative_ask_size(market->get_depth()-1)));
-    // }
-
-
-    int i_bid=0;
-    while (i_bid<=this->market->get_depth()-1 && bid_size<this->size) {
-        bid+=this->market->bid_price(i_bid)*min(this->size-bid_size,this->market->bid_size(i_bid));
-        bid_size+=min(this->size-bid_size,this->market->bid_size(i_bid));
-        i_bid++;
-    }
-
-    // if (bid_size < this->size) {
-    //     this->logger->log_info("Vwap",fmt::format("maximum depth reached on bid, total volume available = {}",market->cumulative_bid_size(market->get_depth()-1)));
-    // }
-
-
-    if (ask_size == 0 || bid_size == 0) {
-        this->mark_dirty();
+    if (!this->market) {
+        this->ask_vwap = std::nan("");
+        this->bid_vwap = std::nan("");
+        this->value = std::nan("");
+        this->valid = false;
         return;
     }
 
-    this->ask_price=ask/ask_size;
-    this->bid_price=bid/bid_size;
-    this->clear_dirty();
+    const auto& asks = this->market->get_ask_ladder();
+    const auto& bids = this->market->get_bid_ladder();
 
+    if (this->amount <= 0.0) {
+        if (asks.empty() || bids.empty()) {
+            this->ask_vwap = std::nan("");
+            this->bid_vwap = std::nan("");
+            this->value = std::nan("");
+            this->valid = false;
+            return;
+        }
+        this->ask_vwap = asks.begin()->first;
+        this->bid_vwap = bids.begin()->first;
+        this->value = 0.5 * (this->ask_vwap + this->bid_vwap);
+        this->valid = true;
+        return;
+    }
+
+    double ask_notional = 0.0;
+    double bid_notional = 0.0;
+    double ask_filled = 0.0;
+    double bid_filled = 0.0;
+
+    for (const auto& [price, level] : asks) {
+        if (ask_filled >= this->amount) {
+            break;
+        }
+        if (level.amount <= 0.0) {
+            continue;
+        }
+        const double take = std::min(this->amount - ask_filled, level.amount);
+        ask_notional += price * take;
+        ask_filled += take;
+    }
+
+    for (const auto& [price, level] : bids) {
+        if (bid_filled >= this->amount) {
+            break;
+        }
+        if (level.amount <= 0.0) {
+            continue;
+        }
+        const double take = std::min(this->amount - bid_filled, level.amount);
+        bid_notional += price * take;
+        bid_filled += take;
+    }
+
+    if (ask_filled < this->amount || bid_filled < this->amount) {
+        this->ask_vwap = std::nan("");
+        this->bid_vwap = std::nan("");
+        this->value = std::nan("");
+        this->valid = false;
+        return;
+    }
+
+    this->ask_vwap = ask_notional / this->amount;
+    this->bid_vwap = bid_notional / this->amount;
+    this->value = 0.5 * (this->ask_vwap + this->bid_vwap);
+    this->valid = true;
 }
 
+double Vwap::get_ask_vwap() const {
+    return this->ask_vwap;
+}
 
+double Vwap::get_bid_vwap() const {
+    return this->bid_vwap;
+}

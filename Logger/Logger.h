@@ -22,6 +22,7 @@ using namespace boost::filesystem;
 class Logger {
     public:
     Logger();
+    ~Logger();
     Logger(const string& logger_name,const string& log_location);
     Logger(const string& logger_name,const string& log_location,const string& log_folder);
 

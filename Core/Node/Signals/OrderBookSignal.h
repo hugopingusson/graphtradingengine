@@ -8,7 +8,7 @@
 #include "../Base/Node.h"
 #include "../Base/MarketNode.h"
 
-class Mid:public Consumer {
+class Mid:public SingleInputConsumer {
     public:
     Mid();
     ~Mid() override = default;
@@ -16,11 +16,13 @@ class Mid:public Consumer {
 
     void compute() override;
 
+    protected:
+    MarketOrderBook* market;
 
 };
 
 
-class Bary:public Consumer {
+class Bary:public SingleInputConsumer {
     public:
     Bary();
     ~Bary() override = default;
@@ -28,11 +30,14 @@ class Bary:public Consumer {
 
     void compute() override;
 
+    protected:
+    MarketOrderBook* market;
+
 };
 
 
 
-class Vwap:public Quote, public Consumer {
+class Vwap:public SingleInputConsumer {
     public:
     Vwap();
     ~Vwap() override = default;
@@ -40,9 +45,14 @@ class Vwap:public Quote, public Consumer {
 
     void compute() override;
 
+    double get_ask_vwap() const;
+    double get_bid_vwap() const;
+
     protected:
     MarketOrderBook* market;
-    double size;
+    double amount;
+    double ask_vwap;
+    double bid_vwap;
 
 };
 
