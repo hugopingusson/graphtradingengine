@@ -5,6 +5,7 @@
 #ifndef MATHNODE_H
 #define MATHNODE_H
 #include "../Base/Node.h"
+#include <string>
 
 // class Skew:public Consumer {
 //     public:
@@ -18,6 +19,19 @@
 //     Signal* parent_1;
 //     Signal* parent_2;
 // };
+
+class Print : public SingleInputConsumer {
+public:
+    Print();
+    ~Print() override = default;
+    Print(SingleInputConsumer* parent, const std::string& label = "Print");
+
+    void compute() override;
+
+private:
+    SingleInputConsumer* parent_signal;
+    std::string label;
+};
 
 
 #endif //MATHNODE_H

@@ -51,6 +51,7 @@ void BacktestEngine::initialize() {
 
 
 void BacktestEngine::run(const Timestamp& start, const Timestamp& end){
+    this->initialize();
 
     this->logger->log_info("BacktestEngine","Routing streamers");
     this->streamer_container.route_and_set_streamers(start,end);

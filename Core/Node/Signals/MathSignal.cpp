@@ -3,6 +3,8 @@
 //
 
 #include "MathSignal.h"
+#include <cmath>
+#include <iostream>
 #include <fmt/format.h>
 
 
@@ -38,3 +40,30 @@
 //         this->mark_dirty();
 //     }
 // }
+
+Print::Print() : SingleInputConsumer(), parent_signal(nullptr), label("Print") {}
+
+Print::Print(SingleInputConsumer* parent, const std::string& label)
+    : SingleInputConsumer(parent), parent_signal(parent), label(label) {
+    if (this->parent_signal) {
+        this->name = fmt::format("Print(parent={})", this->parent_signal->get_name());
+    } else {
+        this->name = "Print(parent=null)";
+    }
+    this->mark_dirty();
+}
+
+void Print::compute() {
+    if (!this->parent_signal) {
+        this->value = std::nan("");
+        this->valid = false;
+        return;
+    }
+
+    this->value = this->parent_signal->get_value();
+    this->valid = !std::isnan(this->value);
+
+    if (this->valid) {
+        std::cout << this->label << ": " << this->value << std::endl;
+    }
+}

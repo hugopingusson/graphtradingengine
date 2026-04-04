@@ -120,7 +120,6 @@ struct Order {
 };
 
 struct Update {
-    std::string instrument;
     MarketTimeStamp market_time_stamp;
     BookLevel level;
     Action action;

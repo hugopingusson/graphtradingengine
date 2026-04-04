@@ -11,6 +11,7 @@ endif()
 # Dépendances
 find_package(Boost 1.71 REQUIRED COMPONENTS system filesystem thread date_time log)
 find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 # Arrow / Parquet: force a single consistent distro stack (system 19.0.1 with snappy).
 set(Arrow_DIR "/usr/lib/x86_64-linux-gnu/cmake/Arrow" CACHE PATH "Arrow config path" FORCE)
@@ -35,7 +36,10 @@ add_executable(GraphTradingEngine
         Core/Node/Signals/OrderBookSignal.cpp
         Core/Node/Signals/MathSignal.cpp
         Core/Streamer/Streamer.cpp
+        Core/Streamer/LiveStreamer.cpp
+        Core/Streamer/BitmexLiveOrderBookStreamer.cpp
         Core/Engine/BacktestEngine.cpp
+        Core/Engine/LiveEngine.cpp
         Helper/Configuration.h
         Data/DataReader/CMEParquetToBin.cpp
         Data/DataReader/CryptolakeParquetToBin.cpp
@@ -60,6 +64,8 @@ target_link_libraries(GraphTradingEngine PRIVATE
         ${Boost_THREAD_LIBRARY}
         ${Boost_DATE_TIME_LIBRARY}
         ${Boost_LOG_LIBRARY}
+        OpenSSL::SSL
+        OpenSSL::Crypto
         Threads::Threads
 )
 
