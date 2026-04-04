@@ -48,7 +48,7 @@ std::map<int,date> FutureHelper::get_roll_date(const int& year, const std::strin
 
     std::map<int,date> roll_dates;
 
-    for (int i = 0; i < months.size(); i++) {
+    for (size_t i = 0; i < months.size(); ++i) {
         roll_dates[months[i]]=date(year,months[i],01)+days(3);
     }
 
@@ -97,4 +97,3 @@ std::string FutureHelper::get_liquid_contract(const std::string& date) {
     }
 
 }
-

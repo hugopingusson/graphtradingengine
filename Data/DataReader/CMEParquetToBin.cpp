@@ -309,12 +309,12 @@ void CMEParquetToBin::convert_file_to_bin(const string& parquet_file_path, const
                 throw std::runtime_error(fmt::format("Null action/side encountered at row {} in '{}'", i, parquet_file_path));
             }
 
-            WideMarketByPriceMessage row{};
+            BacktestWideMarketByPriceRow row{};
 
             row.market_time_stamp.order_gateway_in_timestamp = ts_event_arr->Value(i);
-            row.market_time_stamp.capture_server_in_timestamp = ts_recv_arr->Value(i);
+            row.capture_server_in_timestamp = ts_recv_arr->Value(i);
             row.market_time_stamp.data_gateway_out_timestamp =
-                row.market_time_stamp.capture_server_in_timestamp - static_cast<int64_t>(ts_in_delta_arr->Value(i));
+                row.capture_server_in_timestamp - static_cast<int64_t>(ts_in_delta_arr->Value(i));
 
             const auto action_view = action_arr->GetView(i);
             const auto side_view = side_arr->GetView(i);

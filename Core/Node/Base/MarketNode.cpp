@@ -4,9 +4,9 @@
 
 #include "MarketNode.h"
 
-#include <iostream>
+#include <limits>
 
-Market::Market(){};
+Market::Market(){}
 Market::Market(const string& instrument, const string& exchange):instrument(instrument),exchange(exchange) {}
 
 
@@ -20,8 +20,8 @@ string Market::get_exchange() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MarketOrderBook::MarketOrderBook():depth(),tick_value(){};
-MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value):Node(fmt::format("MarketOrderBook(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),depth(depth),tick_value(tick_value){};
+MarketOrderBook::MarketOrderBook():depth(),tick_value(){}
+MarketOrderBook::MarketOrderBook(const string &instrument, const string& exchange, const int& depth, const double& tick_value):Node(fmt::format("MarketOrderBook(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),depth(depth),tick_value(tick_value){}
 
 
 const AskLadder& MarketOrderBook::get_ask_ladder() const {
@@ -42,57 +42,69 @@ int MarketOrderBook::get_depth() {
 
 
 double MarketOrderBook::ask_price(const std::size_t& i) const {
-    std::size_t cpt = 0;
-    double price;
-    for (auto layer=this->ask_ladder.begin();layer!=this->ask_ladder.end() && cpt<=i;layer++,cpt++) {
-        price=layer->first;
-        cpt++;
+    std::size_t idx = 0;
+    for (auto it = this->ask_ladder.begin(); it != this->ask_ladder.end(); ++it, ++idx) {
+        if (idx == i) {
+            return it->first;
+        }
     }
-    return price;
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
 double MarketOrderBook::bid_price(const std::size_t& i) const {
-    std::size_t cpt = 0;
-    double price;
-    for (auto layer=this->bid_ladder.begin();layer!=this->bid_ladder.end() && cpt<=i;layer++,cpt++) {
-        price=layer->first;
-        cpt++;
+    std::size_t idx = 0;
+    for (auto it = this->bid_ladder.begin(); it != this->bid_ladder.end(); ++it, ++idx) {
+        if (idx == i) {
+            return it->first;
+        }
     }
-    return price;
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
 double MarketOrderBook::ask_size(const std::size_t& i) const {
-    std::size_t cpt = 0;
-    double size;
-    for (auto layer=this->ask_ladder.begin();layer!=this->ask_ladder.end() && cpt<=i;layer++,cpt++) {
-        size=layer->second.size;
-        cpt++;
+    std::size_t idx = 0;
+    for (auto it = this->ask_ladder.begin(); it != this->ask_ladder.end(); ++it, ++idx) {
+        if (idx == i) {
+            return it->second.size;
+        }
     }
-    return size;
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
 double MarketOrderBook::bid_size(const std::size_t& i) const {
-    std::size_t cpt = 0;
-    double size;
-    for (auto layer=this->bid_ladder.begin();layer!=this->bid_ladder.end() && cpt<=i;layer++,cpt++) {
-        size=layer->second.size;
-        cpt++;
+    std::size_t idx = 0;
+    for (auto it = this->bid_ladder.begin(); it != this->bid_ladder.end(); ++it, ++idx) {
+        if (idx == i) {
+            return it->second.size;
+        }
     }
-    return size;
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
 
 double MarketOrderBook::get_best_ask_price() const {
+    if (ask_ladder.empty()) {
+        return 0.0;
+    }
     return ask_ladder.begin()->first;
 }
 double MarketOrderBook::get_best_bid_price() const {
+    if (bid_ladder.empty()) {
+        return 0.0;
+    }
     return bid_ladder.begin()->first;
 }
 
 double MarketOrderBook::get_best_ask_size() const {
+    if (ask_ladder.empty()) {
+        return 0.0;
+    }
     return ask_ladder.begin()->second.size;
 }
 double MarketOrderBook::get_best_bid_size() const {
+    if (bid_ladder.empty()) {
+        return 0.0;
+    }
     return bid_ladder.begin()->second.size;
 }
 
@@ -105,7 +117,13 @@ double MarketOrderBook::spread() const {
 }
 
 double MarketOrderBook::imbalance() const {
-    return (this->get_best_ask_size()-this->get_best_bid_price())/(this->get_best_ask_size()+this->get_best_bid_price());
+    const double ask_size = this->get_best_ask_size();
+    const double bid_size = this->get_best_bid_size();
+    const double denom = ask_size + bid_size;
+    if (denom == 0.0) {
+        return 0.0;
+    }
+    return (ask_size - bid_size) / denom;
 }
 
 double MarketOrderBook::bary() const {
@@ -116,10 +134,15 @@ double MarketOrderBook::bary() const {
 
 
 bool MarketOrderBook::check_staleness(HeartBeatEvent& hb) {
-    if (hb.get_streamer_in_timestamp() - this->last_streamer_in_timestamp > 3*1e6) {
-        this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at ", this->name,Timestamp::unix_to_string(this->last_streamer_in_timestamp)));
+    static constexpr int64_t kStaleThresholdNs = 3'000'000'000LL;
+    if (hb.get_streamer_in_timestamp() - this->last_streamer_in_timestamp > kStaleThresholdNs) {
+        if (this->logger) {
+            this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at {}", this->name, Timestamp::unix_to_string(this->last_streamer_in_timestamp)));
+        }
         this->valid=false;
+        return false;
     }
+    return true;
 }
 
 
@@ -207,26 +230,28 @@ bool MarketOrderBook::match(Order order) {
         if (order.side==Side::ASK) {
             double unfilled=order.size;
             double take;
-            for (auto layer : ask_ladder) {
-                if (unfilled==0){break;}
-                take=std::min(unfilled,layer.second.size);
+            for (auto it = ask_ladder.begin(); it != ask_ladder.end() && unfilled > 0.0;) {
+                take=std::min(unfilled,it->second.size);
                 unfilled-=take;
-                layer.second.size-=take;
-                if (layer.second.size==0) {
-                    ask_ladder.erase(layer.first);
+                it->second.size-=take;
+                if (it->second.size<=0.0) {
+                    it = ask_ladder.erase(it);
+                } else {
+                    ++it;
                 }
             }
         }
         if (order.side==Side::BID) {
             double unfilled=order.size;
             double take;
-            for (auto layer : bid_ladder) {
-                if (unfilled==0){break;}
-                take=std::min(unfilled,layer.second.size);
+            for (auto it = bid_ladder.begin(); it != bid_ladder.end() && unfilled > 0.0;) {
+                take=std::min(unfilled,it->second.size);
                 unfilled-=take;
-                layer.second.size-=take;
-                if (layer.second.size==0) {
-                    bid_ladder.erase(layer.first);
+                it->second.size-=take;
+                if (it->second.size<=0.0) {
+                    it = bid_ladder.erase(it);
+                } else {
+                    ++it;
                 }
             }
         }
@@ -234,7 +259,7 @@ bool MarketOrderBook::match(Order order) {
 
     }
 
-
+    return false;
 }
 
 
@@ -249,7 +274,7 @@ void MarketOrderBook::handle(HeartBeatEvent& hb) {
     this->check_staleness(hb);
 }
 
-void MarketOrderBook::handle(MarketEvent& ev) {
+void MarketOrderBook::handle(MarketEvent& /*ev*/) {
     // Par défaut, ne rien faire. Les sous-types spécifiques traiteront.
 }
 
@@ -281,96 +306,48 @@ void MarketOrderBook::handle(UpdateEvent& update_event) {
 
 
 bool MarketOrderBook::check_snapshot() {
+  if (this->ask_ladder.empty() || this->bid_ladder.empty()){
+    if (this->logger) {
+      this->logger->log_error("MarketOrderBook",fmt::format("snapshot received @ {} by {} has empty side(s), setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    }
+    return false;
+  }
+
   if (this->get_best_ask_price()==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("ask price received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    if (this->logger) {
+      this->logger->log_error("MarketOrderBook",fmt::format("ask price received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    }
     return false;
   }
 
   if (this->get_best_bid_price()==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("bid price received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    if (this->logger) {
+      this->logger->log_error("MarketOrderBook",fmt::format("bid price received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    }
     return false;
   }
 
   if (this->get_best_ask_size()==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("ask size received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    if (this->logger) {
+      this->logger->log_error("MarketOrderBook",fmt::format("ask size received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    }
     return false;
   }
 
   if (this->get_best_bid_size()==0){
-    this->logger->log_error("MarketOrderBook",fmt::format("bid size received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    if (this->logger) {
+      this->logger->log_error("MarketOrderBook",fmt::format("bid size received @ {} by {} is 0, setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name));
+    }
     return false;
   }
 
   if (this->get_best_bid_price()>=this->get_best_ask_price()){
-    this->logger->log_error("MarketOrderBook",fmt::format("snapshot received @ {} by {} show bid={}>=ask={} , setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name,this->get_best_bid_price(),this->get_best_ask_price()));
+    if (this->logger) {
+      this->logger->log_error("MarketOrderBook",fmt::format("snapshot received @ {} by {} show bid={}>=ask={} , setting to invalid",Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),this->name,this->get_best_bid_price(),this->get_best_ask_price()));
+    }
   	return false;
   }
 
   return true;
 
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// MarketTrade::MarketTrade():trade_price(),side(),base_quantity(){}
-// MarketTrade::MarketTrade(const string &instrument, const string &exchange):Node(fmt::format("MarketTrade(instrument={},exchange={})",instrument,exchange)),Market(instrument,exchange),trade_price(),side(),base_quantity(){}
-//
-//
-// Side MarketTrade::get_side() {
-//     return this->side;
-// }
-//
-// double MarketTrade::get_base_quantity() {
-//     return this->base_quantity;
-// }
-//
-// double MarketTrade::get_trade_price() {
-//     return this->trade_price;
-// }
-//
-// double MarketTrade::get_quote_quantity() {
-//     return this->base_quantity*this->trade_price;
-// }
-//
-//
-// // void MarketTrade::handle(TradeEvent& trade) {
-// void MarketTrade::on_event(Event* event) {
-//     TradeEvent* trade = dynamic_cast<TradeEvent*>(event);
-//     this->last_streamer_in_timestamp = trade->get_last_streamer_in_timestamp();
-//     this->last_capture_server_in_timestamp = trade->get_last_market_timestamp().capture_server_in_timestamp;
-//     this->last_order_gateway_in_timestamp = trade->get_last_market_timestamp().order_gateway_in_timestamp;
-//
-//     this->side = trade->get_side();
-//     this->trade_price = trade->get_trade_price();
-//     this->base_quantity = trade->get_base_quantity();
-//
-//     if (!this->check_trade()) {
-//         this->valid = false;
-//     }
-//     else{
-//         this->valid = true;
-//     }
-//
-// }
-//
-// bool MarketTrade::check_trade() {
-//
-//     if (this->trade_price<0){
-//         this->logger->log_error("MarketTrade",fmt::format("trade price received by {} is less than 0, setting to invalid",this->name));
-//         return false;
-//     }
-//
-//     if (this->side != Side::ASK & this->side != Side::BID){
-//         this->logger->log_error("MarketTrade",fmt::format("side received by {} is different from 1 or -1, setting to invalid",this->name));
-//         return false;
-//     }
-//
-//     if (this->base_quantity<0){
-//         this->logger->log_error("MarketTrade",fmt::format("base quantity received by {} less than 0, setting to invalid",this->name));
-//         return false;
-//     }
-//
-//
-//     return true;
-//
-// };
+}

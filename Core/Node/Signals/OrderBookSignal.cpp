@@ -129,3 +129,32 @@ double Vwap::get_ask_vwap() const {
 double Vwap::get_bid_vwap() const {
     return this->bid_vwap;
 }
+
+TopOfBookImbalance::TopOfBookImbalance() : SingleInputConsumer(), market(nullptr) {}
+
+TopOfBookImbalance::TopOfBookImbalance(MarketOrderBook* market)
+    : SingleInputConsumer(market), market(market) {
+    this->name = fmt::format("TopOfBookImbalance({}@{})", market->get_instrument(), market->get_exchange());
+    this->mark_dirty();
+}
+
+void TopOfBookImbalance::compute() {
+    if (!this->market) {
+        this->value = std::nan("");
+        this->valid = false;
+        return;
+    }
+
+    const double best_bid_size = this->market->get_best_bid_size();
+    const double best_ask_size = this->market->get_best_ask_size();
+    const double denom = best_bid_size + best_ask_size;
+
+    if (!std::isfinite(best_bid_size) || !std::isfinite(best_ask_size) || denom <= 0.0) {
+        this->value = std::nan("");
+        this->valid = false;
+        return;
+    }
+
+    this->value = (best_bid_size - best_ask_size) / denom;
+    this->valid = std::isfinite(this->value);
+}

@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <thread>
 #include <sstream>
 #include <stdexcept>
@@ -19,8 +20,8 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/websocket.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <fmt/core.h>
+#include <nlohmann/json.hpp>
 #include <openssl/ssl.h>
 
 namespace {
@@ -28,6 +29,39 @@ using tcp = boost::asio::ip::tcp;
 namespace ssl = boost::asio::ssl;
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
+using Json = nlohmann::json;
+
+inline bool to_int64(const Json& value, int64_t& out) {
+    if (value.is_number_integer()) {
+        out = value.get<int64_t>();
+        return true;
+    }
+    if (value.is_number_unsigned()) {
+        const auto v = value.get<uint64_t>();
+        if (v > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+            return false;
+        }
+        out = static_cast<int64_t>(v);
+        return true;
+    }
+    return false;
+}
+
+inline bool to_double(const Json& value, double& out) {
+    if (value.is_number_float()) {
+        out = value.get<double>();
+        return true;
+    }
+    if (value.is_number_integer()) {
+        out = static_cast<double>(value.get<int64_t>());
+        return true;
+    }
+    if (value.is_number_unsigned()) {
+        out = static_cast<double>(value.get<uint64_t>());
+        return true;
+    }
+    return false;
+}
 }
 
 BitmexLiveOrderBookStreamer::BitmexLiveOrderBookStreamer(const std::string& instrument, size_t ring_capacity)
@@ -106,72 +140,129 @@ bool BitmexLiveOrderBookStreamer::connect_and_stream() {
 
 
 bool BitmexLiveOrderBookStreamer::handle_raw_message(const std::string& raw_message) {
-    boost::property_tree::ptree message;
-    std::istringstream input(raw_message);
-    try {
-        boost::property_tree::read_json(input, message);
-    } catch (const std::exception&) {
+    Json message = Json::parse(raw_message, nullptr, false);
+    if (message.is_discarded() || !message.is_object()) {
         return false;
     }
 
-    const auto table_opt = message.get_optional<std::string>("table");
-    const auto action_opt = message.get_optional<std::string>("action");
-    const auto data_opt = message.get_child_optional("data");
-    if (!table_opt || !action_opt || !data_opt) {
+    const auto table_it = message.find("table");
+    const auto action_it = message.find("action");
+    const auto data_it = message.find("data");
+    if (table_it == message.end() || action_it == message.end() || data_it == message.end()) {
         return false;
     }
-    if (*table_opt != "orderBookL2" && *table_opt != "orderBookL2_25") {
+    if (!table_it->is_string() || !action_it->is_string() || !data_it->is_array()) {
+        return false;
+    }
+
+    const std::string& table = table_it->get_ref<const std::string&>();
+    if (table != "orderBookL2" && table != "orderBookL2_25") {
         return false;
     }
 
     const int64_t streamer_ts = now_ns();
-    const int64_t message_exchange_ts = get_exchange_timestamp(message, nullptr, streamer_ts);
+    int64_t message_exchange_ts = streamer_ts;
 
-    const std::string& action = *action_opt;
+    const auto message_ts_it = message.find("timestamp");
+    if (message_ts_it != message.end() && message_ts_it->is_string()) {
+        const std::string& ts_ref = message_ts_it->get_ref<const std::string&>();
+        try {
+            message_exchange_ts = parse_iso8601_to_ns(ts_ref);
+        } catch (const std::exception&) {
+        }
+    }
+
+    const std::string& action = action_it->get_ref<const std::string&>();
+
+    const Json& data_array = *data_it;
+    std::vector<ParsedL2Row> rows;
+    rows.reserve(data_array.size());
+
+    const std::string instrument = this->get_instrument();
+    for (const auto& row_value : data_array) {
+        if (!row_value.is_object()) {
+            continue;
+        }
+        const Json& row_object = row_value;
+        ParsedL2Row row;
+
+        const auto symbol_it = row_object.find("symbol");
+        if (symbol_it != row_object.end() && symbol_it->is_string()) {
+            const std::string& symbol = symbol_it->get_ref<const std::string&>();
+            row.symbol_matches = symbol.empty() || symbol == instrument;
+        }
+
+        const auto id_it = row_object.find("id");
+        if (id_it != row_object.end()) {
+            row.has_id = to_int64(*id_it, row.id);
+        }
+
+        const auto side_it = row_object.find("side");
+        if (side_it != row_object.end() && side_it->is_string()) {
+            const std::string& side_ref = side_it->get_ref<const std::string&>();
+            row.side = parse_side(side_ref);
+            row.has_side = true;
+        }
+
+        const auto price_it = row_object.find("price");
+        if (price_it != row_object.end()) {
+            row.has_price = to_double(*price_it, row.price);
+        }
+
+        const auto size_it = row_object.find("size");
+        if (size_it != row_object.end()) {
+            row.has_size = to_double(*size_it, row.size);
+        }
+
+        const auto ts_it = row_object.find("timestamp");
+        if (ts_it != row_object.end() && ts_it->is_string()) {
+            const std::string& ts_ref = ts_it->get_ref<const std::string&>();
+            try {
+                row.exchange_timestamp = parse_iso8601_to_ns(ts_ref);
+                row.has_timestamp = true;
+            } catch (const std::exception&) {
+            }
+        }
+
+        rows.push_back(row);
+    }
+
     if (action == "partial") {
-        return this->handle_partial(*data_opt, message_exchange_ts);
+        return this->handle_partial(rows, message_exchange_ts);
     }
     if (action == "insert" || action == "update" || action == "delete") {
-        return this->handle_deltas(action, *data_opt, message_exchange_ts);
+        return this->handle_deltas(action, rows, message_exchange_ts);
     }
 
     return false;
 }
 
-bool BitmexLiveOrderBookStreamer::handle_partial(const boost::property_tree::ptree& data_array, const int64_t& default_exchange_timestamp) {
+bool BitmexLiveOrderBookStreamer::handle_partial(const std::vector<ParsedL2Row>& rows, const int64_t& default_exchange_timestamp) {
     this->levels_by_id.clear();
 
     int64_t reference_exchange_ts = default_exchange_timestamp;
     bool has_any_level = false;
 
-    for (const auto& row_node : data_array) {
-        const auto& row = row_node.second;
-
-        const auto symbol = row.get<std::string>("symbol", "");
-        if (!symbol.empty() && symbol != this->get_instrument()) {
+    for (const auto& row : rows) {
+        if (!row.symbol_matches) {
             continue;
         }
-
-        const auto id_opt = row.get_optional<int64_t>("id");
-        const auto side_opt = row.get_optional<std::string>("side");
-        const auto price_opt = row.get_optional<double>("price");
-        const auto size_opt = row.get_optional<double>("size");
-        if (!id_opt || !side_opt || !price_opt || !size_opt) {
+        if (!row.has_id || !row.has_side || !row.has_price || !row.has_size) {
             continue;
         }
-
-        const Side side = parse_side(*side_opt);
-        if (side == Side::NEUTRAL) {
+        if (row.side == Side::NEUTRAL) {
             continue;
         }
 
         Update cached_update{};
-        cached_update.level = BookLevel{*price_opt, *size_opt, (*price_opt) * (*size_opt), 0};
-        cached_update.side = side;
+        cached_update.level = BookLevel{row.price, row.size, row.price * row.size, 0};
+        cached_update.side = row.side;
         cached_update.action = Action::ADD;
-        this->levels_by_id[*id_opt] = cached_update;
+        this->levels_by_id[row.id] = cached_update;
         has_any_level = true;
-        reference_exchange_ts = get_exchange_timestamp(boost::property_tree::ptree{}, &row, reference_exchange_ts);
+        if (row.has_timestamp) {
+            reference_exchange_ts = row.exchange_timestamp;
+        }
     }
 
     if (!has_any_level) {
@@ -184,7 +275,6 @@ bool BitmexLiveOrderBookStreamer::handle_partial(const boost::property_tree::ptr
     const int64_t streamer_ts = now_ns();
     MarketTimeStamp market_ts{};
     market_ts.order_gateway_in_timestamp = reference_exchange_ts;
-    market_ts.capture_server_in_timestamp = reference_exchange_ts;
     market_ts.data_gateway_out_timestamp = streamer_ts;
 
     MarketByPriceMessage message{};
@@ -193,7 +283,6 @@ bool BitmexLiveOrderBookStreamer::handle_partial(const boost::property_tree::ptr
 
     this->mark_bootstrapped();
     return this->emit_mbp_event(
-        market_ts,
         reference_exchange_ts,
         streamer_ts,
         this->get_order_book_source_node_id(),
@@ -201,26 +290,21 @@ bool BitmexLiveOrderBookStreamer::handle_partial(const boost::property_tree::ptr
     );
 }
 
-bool BitmexLiveOrderBookStreamer::handle_deltas(const std::string& action, const boost::property_tree::ptree& data_array, const int64_t& default_exchange_timestamp) {
+bool BitmexLiveOrderBookStreamer::handle_deltas(const std::string& action, const std::vector<ParsedL2Row>& rows, const int64_t& default_exchange_timestamp) {
     if (!this->is_bootstrapped()) {
         return false;
     }
 
     bool pushed_any = false;
 
-    for (const auto& row_node : data_array) {
-        const auto& row = row_node.second;
-
-        const auto symbol = row.get<std::string>("symbol", "");
-        if (!symbol.empty() && symbol != this->get_instrument()) {
+    for (const auto& row : rows) {
+        if (!row.symbol_matches) {
             continue;
         }
-
-        const auto id_opt = row.get_optional<int64_t>("id");
-        if (!id_opt) {
+        if (!row.has_id) {
             continue;
         }
-        const int64_t level_id = *id_opt;
+        const int64_t level_id = row.id;
 
         Update current{};
         auto current_it = this->levels_by_id.find(level_id);
@@ -232,21 +316,17 @@ bool BitmexLiveOrderBookStreamer::handle_deltas(const std::string& action, const
         if (action == "delete" && !exists) {
             continue;
         }
-        if ((action == "update" || action == "insert") && !exists && !row.get_optional<std::string>("side")) {
+        if ((action == "update" || action == "insert") && !exists && !row.has_side) {
             continue;
         }
 
-        const auto side_opt = row.get_optional<std::string>("side");
-        const auto price_opt = row.get_optional<double>("price");
-        const auto size_opt = row.get_optional<double>("size");
-
-        const Side side = side_opt ? parse_side(*side_opt) : current.side;
+        const Side side = row.has_side ? row.side : current.side;
         if (side == Side::NEUTRAL) {
             continue;
         }
 
-        const double price = price_opt ? *price_opt : current.level.price;
-        const double size = size_opt ? *size_opt : current.level.size;
+        const double price = row.has_price ? row.price : current.level.price;
+        const double size = row.has_size ? row.size : current.level.size;
 
         Action update_action = Action::MODIFY;
         if (action == "insert") {
@@ -271,11 +351,10 @@ bool BitmexLiveOrderBookStreamer::handle_deltas(const std::string& action, const
         }
 
         const int64_t streamer_ts = now_ns();
-        const int64_t exchange_ts = get_exchange_timestamp(boost::property_tree::ptree{}, &row, default_exchange_timestamp);
+        const int64_t exchange_ts = row.has_timestamp ? row.exchange_timestamp : default_exchange_timestamp;
 
         MarketTimeStamp market_ts{};
         market_ts.order_gateway_in_timestamp = exchange_ts;
-        market_ts.capture_server_in_timestamp = exchange_ts;
         market_ts.data_gateway_out_timestamp = streamer_ts;
 
         Update update{};
@@ -289,7 +368,6 @@ bool BitmexLiveOrderBookStreamer::handle_deltas(const std::string& action, const
         message.update = update;
 
         pushed_any |= this->emit_update_event(
-            market_ts,
             exchange_ts,
             streamer_ts,
             this->get_order_book_source_node_id(),
@@ -322,7 +400,7 @@ void BitmexLiveOrderBookStreamer::rebuild_snapshot(SnapshotData& out_snapshot) c
     ladder_to_snapshot(bids, asks, out_snapshot, kBookLevels);
 }
 
-Side BitmexLiveOrderBookStreamer::parse_side(const std::string& side) {
+Side BitmexLiveOrderBookStreamer::parse_side(std::string_view side) {
     if (side == "Buy" || side == "BID" || side == "bid") {
         return Side::BID;
     }
@@ -336,27 +414,53 @@ int64_t BitmexLiveOrderBookStreamer::now_ns() {
     return Timestamp::now_unix(Resolution::nanoseconds);
 }
 
-int64_t BitmexLiveOrderBookStreamer::parse_iso8601_to_ns(const std::string& timestamp) {
-    if (timestamp.size() < 20) {
-        throw std::runtime_error(fmt::format("Invalid ISO8601 timestamp '{}'", timestamp));
+int64_t BitmexLiveOrderBookStreamer::parse_iso8601_to_ns(std::string_view timestamp) {
+    if (timestamp.size() < 19) {
+        throw std::runtime_error("Invalid ISO8601 timestamp");
     }
 
-    // Expected: YYYY-MM-DDTHH:MM:SS[.fraction][Z]
-    const int year = std::stoi(timestamp.substr(0, 4));
-    const int month = std::stoi(timestamp.substr(5, 2));
-    const int day = std::stoi(timestamp.substr(8, 2));
-    const int hour = std::stoi(timestamp.substr(11, 2));
-    const int minute = std::stoi(timestamp.substr(14, 2));
-    const int second = std::stoi(timestamp.substr(17, 2));
+    auto digit = [](const char c) -> int {
+        if (c < '0' || c > '9') {
+            return -1;
+        }
+        return c - '0';
+    };
+    auto parse2 = [&](const size_t pos) -> int {
+        const int d0 = digit(timestamp[pos]);
+        const int d1 = digit(timestamp[pos + 1]);
+        if (d0 < 0 || d1 < 0) {
+            throw std::runtime_error("Invalid ISO8601 timestamp");
+        }
+        return d0 * 10 + d1;
+    };
+    auto parse4 = [&](const size_t pos) -> int {
+        return parse2(pos) * 100 + parse2(pos + 2);
+    };
+
+    if (timestamp[4] != '-' || timestamp[7] != '-' || (timestamp[10] != 'T' && timestamp[10] != ' ')
+        || timestamp[13] != ':' || timestamp[16] != ':') {
+        throw std::runtime_error("Invalid ISO8601 timestamp");
+    }
+
+    const int year = parse4(0);
+    const int month = parse2(5);
+    const int day = parse2(8);
+    const int hour = parse2(11);
+    const int minute = parse2(14);
+    const int second = parse2(17);
 
     size_t pos = 19;
     int64_t nanos = 0;
     if (pos < timestamp.size() && timestamp[pos] == '.') {
         ++pos;
         int digits = 0;
-        while (pos < timestamp.size() && std::isdigit(static_cast<unsigned char>(timestamp[pos]))) {
+        while (pos < timestamp.size()) {
+            const int d = digit(timestamp[pos]);
+            if (d < 0) {
+                break;
+            }
             if (digits < 9) {
-                nanos = nanos * 10 + static_cast<int64_t>(timestamp[pos] - '0');
+                nanos = nanos * 10 + d;
                 ++digits;
             }
             ++pos;
@@ -383,28 +487,4 @@ int64_t BitmexLiveOrderBookStreamer::parse_iso8601_to_ns(const std::string& time
         + static_cast<int64_t>(minute) * 60LL
         + static_cast<int64_t>(second);
     return (days * 86400LL + day_seconds) * 1000000000LL + nanos;
-}
-
-int64_t BitmexLiveOrderBookStreamer::get_exchange_timestamp(const boost::property_tree::ptree& message,
-                                                            const boost::property_tree::ptree* row,
-                                                            const int64_t& fallback_timestamp) {
-    if (row) {
-        const auto row_ts_opt = row->get_optional<std::string>("timestamp");
-        if (row_ts_opt) {
-            try {
-                return parse_iso8601_to_ns(*row_ts_opt);
-            } catch (const std::exception&) {
-            }
-        }
-    }
-
-    const auto message_ts_opt = message.get_optional<std::string>("timestamp");
-    if (message_ts_opt) {
-        try {
-            return parse_iso8601_to_ns(*message_ts_opt);
-        } catch (const std::exception&) {
-        }
-    }
-
-    return fallback_timestamp;
 }

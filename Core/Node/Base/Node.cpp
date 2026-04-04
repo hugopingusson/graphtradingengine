@@ -12,15 +12,8 @@ Node::Node() {
     node_id=int();
 }
 
-Node::Node(const string& name) {
-    sequence_number = int64_t();
-    last_order_gateway_in_timestamp=int64_t();
-    last_streamer_in_timestamp=int64_t();
-    last_capture_server_in_timestamp=int64_t();
-    valid=false;
+Node::Node(const string& name) : Node() {
     this->name=name;
-    logger=nullptr;
-    node_id=int();
 }
 
 
@@ -83,7 +76,7 @@ ProducerConsumer::ProducerConsumer() = default;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
-Quote::Quote(): ask_price(),bid_price(){};
+Quote::Quote(): ask_price(),bid_price(){}
 // Quote::Quote(const string& name):Node(name),ask_price(),bid_price(){};
 // Quote::Quote(const int& node_id,const string& name,Logger* main_logger):ChildNode(node_id,name,main_logger),ask_price(),bid_price(){};
 
@@ -111,9 +104,7 @@ double Quote::spread() {
 SingleInputConsumer::SingleInputConsumer(): parent(nullptr),value(std::nan("")){}
 // Signal::Signal(const int& node_id,const string &name,Logger* logger):ChildNode(node_id,name,logger),value(std::nan("")) {}
 
-SingleInputConsumer::SingleInputConsumer(Node *parent) : value(std::nan("")) {
-    this->parent = parent;
-}
+SingleInputConsumer::SingleInputConsumer(Node *parent) : parent(parent), value(std::nan("")) {}
 
 
 double SingleInputConsumer::get_value() const {
@@ -149,99 +140,3 @@ bool SingleInputConsumer::update() {
     }
     return this->value != last_value;
 }
-
-
-// if ((*this->parent).is_valid()) {
-//     if (this->valid) {
-//         double last_value=this->value;
-//         this->compute();
-//         if (this->valid) {
-//             if (this->value != last_value) {
-//                 return true;
-//             }
-//             else{
-//                 return false;
-//             }
-//         }
-//         else {
-//             return true;
-//         }
-//     }
-//     else {
-//         this->compute();
-//         if (this->valid) {
-//         }
-//     }
-// }
-//
-
-
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-// Signal::Signal(): value(std::nan("")){}
-// // Signal::Signal(const int& node_id,const string &name,Logger* logger):ChildNode(node_id,name,logger),value(std::nan("")) {}
-//
-//
-// double Signal::get_value() const {
-//     return this->value;
-// }
-//
-// ///////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-// MonoSignal::MonoSignal() {
-//     parent=nullptr;
-// };
-//
-// MonoSignal::MonoSignal(Node* parent) {
-//     this->parent=parent;
-// }
-//
-// // MonoSignal::MonoSignal(const int& node_id,const string &name,Node* parent,Logger* logger):Signal(node_id,name,logger),parent(parent) {}
-//
-// Node *MonoSignal::get_parent() const {
-//     return this->parent;
-// }
-//
-//
-// void MonoSignal::update() {
-//     if ((*this->parent).is_valid()) {
-//         this->value=this->compute();
-//         if (std::isnan(this->value)) {
-//             this->valid=false;
-//         }
-//         else {
-//             this->valid=true;
-//         }
-//     }else {
-//         this->valid=false;
-//     }
-// }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// ValidCollector::ValidCollector():valid_map(map<const Node*, bool>()) {}
-// ValidCollector::ValidCollector(const map<const Node *, bool>& valid_map):valid_map(valid_map) {}
-//
-//
-// void ValidCollector::update(const Node& node) {
-//     this->valid_map.at(&node)=node.is_valid();
-// }
-//
-//
-//
-// MultiValueNode::MultiValueNode():Signal(){
-//     valid_collector = ValidCollector();
-//
-// }
-//
-// MultiValueNode::MultiValueNode(const string &name):Signal(name) {
-//     valid_collector = ValidCollector();
-// }
-//
-// void MultiValueNode::update(const Node& node) {
-//     this->valid_collector.update(node);
-//
-// }

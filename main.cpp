@@ -9,13 +9,13 @@ int main() {
     Logger logger("MainLogger", "/home/hugo/gte_logs");
 
     Graph graph(&logger);
-    MarketOrderBook market("XBTUSD", "bitmex", 10, 0.5);
-    Vwap vwap(&market, 200.0);
-    Print print_mid(&vwap, "mid");
+    MarketOrderBook market("BTCUSDT", "binance", 10, 0.5);
+    TopOfBookImbalance tob_imbalance(&market);
+    Print print_imbalance(&tob_imbalance, "tob_imbalance");
 
     graph.add_producer(&market);
-    graph.add_edge(&market, &vwap);
-    graph.add_edge(&vwap, &print_mid);
+    graph.add_edge(&market, &tob_imbalance);
+    graph.add_edge(&tob_imbalance, &print_imbalance);
 
     LiveEngine live_engine(&logger, &graph);
     live_engine.run();

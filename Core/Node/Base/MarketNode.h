@@ -50,6 +50,7 @@ class MarketOrderBook:public Market  {
     const AskLadder& get_ask_ladder() const;
     const BidLadder& get_bid_ladder() const;
 
+
     double get_best_ask_price() const;
     double get_best_bid_price() const;
     double get_best_ask_size() const;
@@ -104,6 +105,7 @@ class MarketOrderBook:public Market  {
     BidLadder bid_ladder;
     int depth;
     double tick_value;
+
 
 };
 

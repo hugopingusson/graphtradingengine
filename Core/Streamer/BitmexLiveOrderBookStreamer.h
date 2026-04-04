@@ -7,9 +7,9 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <unordered_map>
-
-#include <boost/property_tree/ptree.hpp>
+#include <vector>
 
 #include "LiveStreamer.h"
 
@@ -22,19 +22,30 @@ protected:
     void run_loop() override;
 
 private:
+    struct ParsedL2Row {
+        bool symbol_matches{true};
+        bool has_id{false};
+        int64_t id{};
+        bool has_side{false};
+        Side side{Side::NEUTRAL};
+        bool has_price{false};
+        double price{};
+        bool has_size{false};
+        double size{};
+        bool has_timestamp{false};
+        int64_t exchange_timestamp{};
+    };
+
     bool connect_and_stream();
     std::string subscription_payload() const;
 
     bool handle_raw_message(const std::string& raw_message);
-    bool handle_partial(const boost::property_tree::ptree& data_array, const int64_t& default_exchange_timestamp);
-    bool handle_deltas(const std::string& action, const boost::property_tree::ptree& data_array, const int64_t& default_exchange_timestamp);
+    bool handle_partial(const std::vector<ParsedL2Row>& rows, const int64_t& default_exchange_timestamp);
+    bool handle_deltas(const std::string& action, const std::vector<ParsedL2Row>& rows, const int64_t& default_exchange_timestamp);
 
-    static Side parse_side(const std::string& side);
+    static Side parse_side(std::string_view side);
     static int64_t now_ns();
-    static int64_t parse_iso8601_to_ns(const std::string& timestamp);
-    static int64_t get_exchange_timestamp(const boost::property_tree::ptree& message,
-                                          const boost::property_tree::ptree* row,
-                                          const int64_t& fallback_timestamp);
+    static int64_t parse_iso8601_to_ns(std::string_view timestamp);
 
     void rebuild_snapshot(SnapshotData& out_snapshot) const;
 

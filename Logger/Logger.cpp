@@ -5,7 +5,7 @@
 #include "Logger.h"
 
 
-Logger::Logger(){};
+Logger::Logger(){}
 
 Logger::~Logger() {
     if (this->spdlogger) {

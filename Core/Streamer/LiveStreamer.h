@@ -140,20 +140,17 @@ public:
     ~LiveOrderBookStreamer() override = default;
 
 protected:
-    bool emit_mbp_event(const MarketTimeStamp& market_time_stamp,
-                        const int64_t& capture_server_in_timestamp,
+    bool emit_mbp_event(const int64_t& capture_server_in_timestamp,
                         const int64_t& streamer_in_timestamp,
                         const int& source_id_trigger,
                         const MarketByPriceMessage& message);
 
-    bool emit_mbo_event(const MarketTimeStamp& market_time_stamp,
-                        const int64_t& capture_server_in_timestamp,
+    bool emit_mbo_event(const int64_t& capture_server_in_timestamp,
                         const int64_t& streamer_in_timestamp,
                         const int& source_id_trigger,
                         const MarketByOrderMessage& message);
 
-    bool emit_update_event(const MarketTimeStamp& market_time_stamp,
-                           const int64_t& capture_server_in_timestamp,
+    bool emit_update_event(const int64_t& capture_server_in_timestamp,
                            const int64_t& streamer_in_timestamp,
                            const int& source_id_trigger,
                            const MarketUpdateMessage& message);

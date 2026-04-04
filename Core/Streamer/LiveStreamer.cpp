@@ -113,14 +113,12 @@ LiveOrderBookStreamer::LiveOrderBookStreamer(const std::string& name, const std:
     : MarketStreamer(instrument, exchange),
       LiveStreamer(name, ring_capacity) {}
 
-bool LiveOrderBookStreamer::emit_mbp_event(const MarketTimeStamp& market_time_stamp,
-                                           const int64_t& capture_server_in_timestamp,
+bool LiveOrderBookStreamer::emit_mbp_event(const int64_t& capture_server_in_timestamp,
                                            const int64_t& streamer_in_timestamp,
                                            const int& source_id_trigger,
                                            const MarketByPriceMessage& message) {
     return this->push_event(std::make_unique<MBPEvent>(
         this->get_instrument(),
-        market_time_stamp,
         capture_server_in_timestamp,
         streamer_in_timestamp,
         source_id_trigger,
@@ -128,14 +126,12 @@ bool LiveOrderBookStreamer::emit_mbp_event(const MarketTimeStamp& market_time_st
     ));
 }
 
-bool LiveOrderBookStreamer::emit_mbo_event(const MarketTimeStamp& market_time_stamp,
-                                           const int64_t& capture_server_in_timestamp,
+bool LiveOrderBookStreamer::emit_mbo_event(const int64_t& capture_server_in_timestamp,
                                            const int64_t& streamer_in_timestamp,
                                            const int& source_id_trigger,
                                            const MarketByOrderMessage& message) {
     return this->push_event(std::make_unique<MBOEvent>(
         this->get_instrument(),
-        market_time_stamp,
         capture_server_in_timestamp,
         streamer_in_timestamp,
         source_id_trigger,
@@ -143,14 +139,12 @@ bool LiveOrderBookStreamer::emit_mbo_event(const MarketTimeStamp& market_time_st
     ));
 }
 
-bool LiveOrderBookStreamer::emit_update_event(const MarketTimeStamp& market_time_stamp,
-                                              const int64_t& capture_server_in_timestamp,
+bool LiveOrderBookStreamer::emit_update_event(const int64_t& capture_server_in_timestamp,
                                               const int64_t& streamer_in_timestamp,
                                               const int& source_id_trigger,
                                               const MarketUpdateMessage& message) {
     return this->push_event(std::make_unique<UpdateEvent>(
         this->get_instrument(),
-        market_time_stamp,
         capture_server_in_timestamp,
         streamer_in_timestamp,
         source_id_trigger,

@@ -60,17 +60,16 @@ class MarketEvent : public Event {
     public:
     MarketEvent();
     ~MarketEvent() override =default;
-    MarketEvent(const string& instrument,const MarketTimeStamp& market_time_stamp,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger);
+    MarketEvent(const string& instrument,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger);
 
     [[nodiscard]] const string& get_instrument() const;
-    [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const;
+    [[nodiscard]] virtual MarketTimeStamp get_last_market_timestamp() const = 0;
 
     void dispatchTo(MarketOrderBook& target) override;
 
 
     protected:
 
-    MarketTimeStamp market_timestamp;
     string instrument;
 
 };
@@ -81,10 +80,11 @@ class MBPEvent : public MarketEvent {
     public:
     MBPEvent();
     ~MBPEvent() override =default;
-    MBPEvent(const string& instrument,const MarketTimeStamp& market_time_stamp,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const MarketByPriceMessage& mbp_message);
+    MBPEvent(const string& instrument,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const MarketByPriceMessage& mbp_message);
 
     [[nodiscard]] MarketByPriceMessage get_message() const;
     [[nodiscard]] SnapshotData get_snapshot_data() const;
+    [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const override;
 
     void dispatchTo(MarketOrderBook& target) override;
 
@@ -97,10 +97,11 @@ class MBOEvent : public MarketEvent {
 public:
     MBOEvent();
     ~MBOEvent() override =default;
-    MBOEvent(const string& instrument,const MarketTimeStamp& market_time_stamp,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const MarketByOrderMessage& mbo_message);
+    MBOEvent(const string& instrument,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const MarketByOrderMessage& mbo_message);
 
     [[nodiscard]] MarketByOrderMessage get_message() const;
     [[nodiscard]] Order get_order() const;
+    [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const override;
 
     void dispatchTo(MarketOrderBook& target) override;
 
@@ -113,10 +114,11 @@ class UpdateEvent : public MarketEvent {
 public:
     UpdateEvent();
     ~UpdateEvent() override =default;
-    UpdateEvent(const string& instrument,const MarketTimeStamp& market_time_stamp,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const MarketUpdateMessage& mbo_message);
+    UpdateEvent(const string& instrument,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const MarketUpdateMessage& mbo_message);
 
     [[nodiscard]] MarketUpdateMessage get_message() const;
     [[nodiscard]] Update get_update() const;
+    [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const override;
 
 
     void dispatchTo(MarketOrderBook& target) override;
@@ -136,12 +138,14 @@ class TradeEvent : public MarketEvent {
     Side get_side() const;
     double get_trade_price() const;
     double get_base_quantity() const;
+    [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const override;
 
 
     protected:
     Side side;
     double trade_price;
     double base_quantity;
+    MarketTimeStamp trade_market_timestamp;
 
 };
 

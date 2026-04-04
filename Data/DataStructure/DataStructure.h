@@ -26,7 +26,6 @@ enum class Action : std::int32_t { ADD=0, CANCEL=1, MODIFY=2, TRADE=3 };
 enum class Side   : std::int32_t { BID=0, ASK=1, NEUTRAL=2 };
 
 struct MarketTimeStamp {
-    int64_t capture_server_in_timestamp;
     int64_t order_gateway_in_timestamp;
     int64_t data_gateway_out_timestamp;
 };
@@ -142,6 +141,14 @@ struct MarketByPriceMessage{
 };
 
 struct WideMarketByPriceMessage{
+    MarketTimeStamp market_time_stamp;
+    SnapshotData order_book_snapshot_data;
+    Order order;
+};
+
+// On-disk backtest row format: capture timestamp stays event-level, not market-level.
+struct BacktestWideMarketByPriceRow {
+    int64_t capture_server_in_timestamp;
     MarketTimeStamp market_time_stamp;
     SnapshotData order_book_snapshot_data;
     Order order;

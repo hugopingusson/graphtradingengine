@@ -4,7 +4,6 @@
 
 #include "Graph.h"
 
-#include <iostream>
 // Graph::Graph():sequence_number(int64_t()),last_order_gateway_in_timestamp(int64_t()),last_streamer_in_timestamp(int64_t()),last_in_graph_timestamp(int64_t()),last_out_graph_timestamp(int64_t()),
 //     adjacency_map(map<int,vector<int>>()),child_node_container(map<int,Node*>()),source_container(map<int,Node*>()){
 //     logger=Logger("MainLogger","/home/hugo/gte_logs");
@@ -24,22 +23,14 @@ Graph::Graph(){
     producer_container=map<int,Producer*>();
     sink_container=map<int,Node*>();
     max_id=0;
-};
+}
 
 
-Graph::Graph(Logger *logger) {
+Graph::Graph(Logger *logger) : Graph() {
     this->logger=logger;
-    sequence_number=int64_t();
-    last_in_order_gateway_timestamp=int64_t();
-    last_in_streamer_timestamp=int64_t();
-    last_in_graph_timestamp=int64_t();
-    last_out_graph_timestamp=int64_t();
-    adjacency_map=map<int,vector<int>>();
-    consumer_container=map<int,Consumer*>();
-    producer_container=map<int,Producer*>();
-    sink_container=map<int,Node*>();
-    max_id=0;
-    logger->log_info("Graph","Created Graph");
+    if (this->logger) {
+        this->logger->log_info("Graph","Created Graph");
+    }
 }
 
 
@@ -127,10 +118,14 @@ void Graph::add_producer(Producer* source_node) {
 
 
     this->adjacency_map[this->max_id]=vector<int>();
-    this->logger->log_info("Graph",fmt::format("Checked in source node: node name = {} node id = {}",source_node->get_name(),source_node->get_node_id()));
+    if (this->logger) {
+        this->logger->log_info("Graph",fmt::format("Checked in source node: node name = {} node id = {}",source_node->get_name(),source_node->get_node_id()));
+    }
 
     this->producer_container[this->max_id]=source_node;
-    this->logger->log_info("Graph",fmt::format("Added source node: {}",source_node->get_name()));
+    if (this->logger) {
+        this->logger->log_info("Graph",fmt::format("Added source node: {}",source_node->get_name()));
+    }
 }
 
 
@@ -140,25 +135,32 @@ void Graph::add_edge(Node *publisher, Consumer *subscriber) {
     int publisher_id = this->get_node_id(publisher);
     if (publisher_id==-1) {
         string error_message=fmt::format("Error in add_edge, could not find publisher node in the Graph: publisher={} , subcriber={}", publisher->get_name(),subscriber->get_name());
-        this->logger->log_error("Graph",error_message);
+        if (this->logger) {
+            this->logger->log_error("Graph",error_message);
+        }
         throw std::logic_error(error_message);
     }
-    if (!this->checked_in(subscriber)) {
-
+    int subscriber_id = this->get_node_id(subscriber);
+    if (subscriber_id == -1) {
         this->max_id+=1;
+        subscriber_id = this->max_id;
 
-        subscriber->set_node_id(this->max_id);
+        subscriber->set_node_id(subscriber_id);
         subscriber->set_logger(this->logger);
 
 
-        this->consumer_container[this->max_id]=subscriber;
-        this->adjacency_map[this->max_id]=vector<int>();
+        this->consumer_container[subscriber_id]=subscriber;
+        this->adjacency_map[subscriber_id]=vector<int>();
 
-        this->logger->log_info("Graph",fmt::format("Checked in child node: node name = {} node id = {}",subscriber->get_name(),subscriber->get_node_id()));
+        if (this->logger) {
+            this->logger->log_info("Graph",fmt::format("Checked in child node: node name = {} node id = {}",subscriber->get_name(),subscriber->get_node_id()));
+        }
     }
-    this->adjacency_map[publisher_id].push_back(this->max_id);
+    this->adjacency_map[publisher_id].push_back(subscriber_id);
 
-    this->logger->log_info("Graph",fmt::format("Added edge : {} -----> {}",publisher->get_name(),subscriber->get_name()));
+    if (this->logger) {
+        this->logger->log_info("Graph",fmt::format("Added edge : {} -----> {}",publisher->get_name(),subscriber->get_name()));
+    }
 }
 
 void Graph::resolve_output_nodes() {
@@ -205,7 +207,9 @@ void Graph::resolve_update_path() {
                 path.erase(path.begin());
 
                 if (path.empty()) {
-                    this->logger->log_warn("Graph",fmt::format("Source node = {} is not connected to any child node",it.second->get_name()));
+                    if (this->logger) {
+                        this->logger->log_warn("Graph",fmt::format("Source node = {} is not connected to any child node",it.second->get_name()));
+                    }
                 }else {
                     sub_path.push_back(path);
                 }
@@ -215,7 +219,7 @@ void Graph::resolve_update_path() {
         while (!sub_path.empty()) {
             vector<int> element_to_erase=vector<int>();
 
-            for (int i=0; i<sub_path.size(); i++) {
+            for (size_t i = 0; i < sub_path.size(); ++i) {
                 int new_element = sub_path[i][ sub_path[i].size()-1];
                 sub_path[i].erase( sub_path[i].end()-1);
                 auto p =std::find(this->update_path[it.first].begin(),this->update_path[it.first].end(),new_element);
@@ -224,13 +228,13 @@ void Graph::resolve_update_path() {
                 }
 
                 if ( sub_path[i].empty()) {
-                    element_to_erase.push_back(i);
+                    element_to_erase.push_back(static_cast<int>(i));
                 }
 
             }
 
-            for (int i:element_to_erase) {
-                sub_path.erase(sub_path.begin()+i);
+            for (auto it_idx = element_to_erase.rbegin(); it_idx != element_to_erase.rend(); ++it_idx) {
+                sub_path.erase(sub_path.begin() + *it_idx);
             }
 
 
@@ -251,6 +255,16 @@ void Graph::resolve_update_path() {
 
 
 void Graph::update(const int& source_id) {
+    auto source_children_it = this->adjacency_map.find(source_id);
+    if (source_children_it != this->adjacency_map.end()) {
+        for (const int child_id : source_children_it->second) {
+            auto consumer_it = this->consumer_container.find(child_id);
+            if (consumer_it != this->consumer_container.end() && consumer_it->second) {
+                consumer_it->second->mark_dirty();
+            }
+        }
+    }
+
     for (int& node_id:this->update_path[source_id]) {
         if (this->consumer_container[node_id]->is_dirty()) {
             if (this->consumer_container[node_id]->update()) {
@@ -262,10 +276,6 @@ void Graph::update(const int& source_id) {
         }
     }
 }
-
-
-
-
 
 
 

@@ -38,6 +38,9 @@ add_executable(GraphTradingEngine
         Core/Streamer/Streamer.cpp
         Core/Streamer/LiveStreamer.cpp
         Core/Streamer/BitmexLiveOrderBookStreamer.cpp
+        Core/Streamer/BinanceLiveOrderBookStreamer.cpp
+        Core/Streamer/DeribitLiveOrderBookStreamer.cpp
+        Core/Streamer/OkxLiveOrderBookStreamer.cpp
         Core/Engine/BacktestEngine.cpp
         Core/Engine/LiveEngine.cpp
         Helper/Configuration.h

@@ -9,16 +9,6 @@
 #include "../../Helper/DataBaseHelper.h"
 #include "../Graph/Graph.h"
 
-namespace {
-#pragma pack(push, 1)
-struct BacktestWideMarketByPriceRow {
-    MarketTimeStamp market_time_stamp{};
-    SnapshotData order_book_snapshot_data{};
-    Order order{};
-};
-#pragma pack(pop)
-}
-
 Streamer::Streamer() {}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,10 +42,10 @@ void BacktestStreamer::set_id(const size_t& id) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer():file(),current_message() {}
-DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer(const string& instrument, const string& exchange):MarketStreamer(instrument,exchange),BacktestStreamer(),file(),current_message() {}
+DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer():file(),current_capture_server_in_timestamp(),current_message() {}
+DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer(const string& instrument, const string& exchange):MarketStreamer(instrument,exchange),BacktestStreamer(),file(),current_capture_server_in_timestamp(),current_message() {}
 
-void DatabaseWMBPBacktestStreamer::set_and_route(const Timestamp& start, const Timestamp& end) {
+void DatabaseWMBPBacktestStreamer::set_and_route(const Timestamp& start, const Timestamp& /*end*/) {
 
     DataBaseHelper databe_base_helper = DataBaseHelper();
 
@@ -96,11 +86,12 @@ bool DatabaseWMBPBacktestStreamer::advance() {
     this->current_message.market_time_stamp = row.market_time_stamp;
     this->current_message.order_book_snapshot_data = row.order_book_snapshot_data;
     this->current_message.order = row.order;
+    this->current_capture_server_in_timestamp = row.capture_server_in_timestamp;
     return true;
 }
 
 HeapItem DatabaseWMBPBacktestStreamer::get_current_heap_item() {
-    return {this->current_message.market_time_stamp.capture_server_in_timestamp,this->id};
+    return {this->current_capture_server_in_timestamp,this->id};
 }
 
 bool DatabaseWMBPBacktestStreamer::is_good() const {
@@ -114,9 +105,8 @@ void DatabaseWMBPBacktestStreamer::process_current(Graph* graph) {
 
     MBPEvent event(
         this->instrument,
-        this->current_message.market_time_stamp,
-        this->current_message.market_time_stamp.capture_server_in_timestamp,
-        this->current_message.market_time_stamp.capture_server_in_timestamp,
+        this->current_capture_server_in_timestamp,
+        this->current_capture_server_in_timestamp,
         this->order_book_source_node_id,
         message
     );
@@ -131,8 +121,8 @@ WideMarketByPriceMessage DatabaseWMBPBacktestStreamer::get_current_message() con
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-HeartBeatBackTestStreamer::HeartBeatBackTestStreamer():frequency(),heartbeat_source_node_id(),capture_in_server_timestamp(),end_capture_in_server_timestamp(){};
-HeartBeatBackTestStreamer::HeartBeatBackTestStreamer(const double& frequency):frequency(frequency),heartbeat_source_node_id(),capture_in_server_timestamp(),end_capture_in_server_timestamp(){};
+HeartBeatBackTestStreamer::HeartBeatBackTestStreamer():frequency(),heartbeat_source_node_id(),capture_in_server_timestamp(),end_capture_in_server_timestamp(){}
+HeartBeatBackTestStreamer::HeartBeatBackTestStreamer(const double& frequency):frequency(frequency),heartbeat_source_node_id(),capture_in_server_timestamp(),end_capture_in_server_timestamp(){}
 
 string HeartBeatBackTestStreamer::get_name() {
     return fmt::format("HeartBeatBackTestStreamer(frequency={})",std::to_string(frequency));
@@ -193,8 +183,8 @@ void HeartBeatBackTestStreamer::process_current(Graph* graph) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-BackTestStreamerContainer::BackTestStreamerContainer():logger(nullptr),max_id(),streamers(){}
-BackTestStreamerContainer::BackTestStreamerContainer(Logger* logger):logger(logger),max_id(),streamers(){}
+BackTestStreamerContainer::BackTestStreamerContainer():max_id(),logger(nullptr),streamers(){}
+BackTestStreamerContainer::BackTestStreamerContainer(Logger* logger):max_id(),logger(logger),streamers(){}
 
 BackTestStreamerContainer::~BackTestStreamerContainer() {
     if (this->logger) {

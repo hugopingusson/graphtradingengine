@@ -364,15 +364,15 @@ void CryptolakeParquetToBin::convert_file_to_bin(const string& parquet_file_path
                 throw std::runtime_error(fmt::format("Null exchange_time/reception_time at row {} in '{}'", i, parquet_file_path));
             }
 
-            WideMarketByPriceMessage row{};
+            BacktestWideMarketByPriceRow row{};
 
             const auto exchange_time_view = exchange_time_arr->GetView(i);
             const auto reception_time_view = reception_time_arr->GetView(i);
             row.market_time_stamp.order_gateway_in_timestamp =
                 parse_timestamp_to_ns(string_view(exchange_time_view.data(), exchange_time_view.size()));
-            row.market_time_stamp.capture_server_in_timestamp =
+            row.capture_server_in_timestamp =
                 parse_timestamp_to_ns(string_view(reception_time_view.data(), reception_time_view.size()));
-            row.market_time_stamp.data_gateway_out_timestamp = row.market_time_stamp.capture_server_in_timestamp;
+            row.market_time_stamp.data_gateway_out_timestamp = row.capture_server_in_timestamp;
 
             row.order.side = Side::NEUTRAL;
             row.order.action = Action::ADD;

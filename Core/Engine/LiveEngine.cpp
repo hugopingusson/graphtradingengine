@@ -8,12 +8,17 @@
 #include <cctype>
 #include <chrono>
 #include <limits>
+#include <queue>
 #include <string>
 #include <stdexcept>
+#include <vector>
 
 #include <fmt/format.h>
 
 #include "../Streamer/BitmexLiveOrderBookStreamer.h"
+#include "../Streamer/BinanceLiveOrderBookStreamer.h"
+#include "../Streamer/DeribitLiveOrderBookStreamer.h"
+#include "../Streamer/OkxLiveOrderBookStreamer.h"
 
 LiveEngine::LiveEngine()
     : logger(nullptr),
@@ -125,6 +130,18 @@ void LiveEngine::register_market_orderbook_source(MarketOrderBook* market) {
         auto bitmex_streamer = std::make_unique<BitmexLiveOrderBookStreamer>(market->get_instrument());
         bitmex_streamer->set_order_book_source_node_id(market->get_node_id());
         new_streamer = std::move(bitmex_streamer);
+    } else if (exchange == "binance") {
+        auto binance_streamer = std::make_unique<BinanceLiveOrderBookStreamer>(market->get_instrument());
+        binance_streamer->set_order_book_source_node_id(market->get_node_id());
+        new_streamer = std::move(binance_streamer);
+    } else if (exchange == "deribit") {
+        auto deribit_streamer = std::make_unique<DeribitLiveOrderBookStreamer>(market->get_instrument());
+        deribit_streamer->set_order_book_source_node_id(market->get_node_id());
+        new_streamer = std::move(deribit_streamer);
+    } else if (exchange == "okx") {
+        auto okx_streamer = std::make_unique<OkxLiveOrderBookStreamer>(market->get_instrument());
+        okx_streamer->set_order_book_source_node_id(market->get_node_id());
+        new_streamer = std::move(okx_streamer);
     } else {
         throw std::runtime_error(fmt::format(
             "LiveEngine::register_market_orderbook_source unsupported exchange '{}' for instrument '{}'",
@@ -229,33 +246,52 @@ bool LiveEngine::is_running() const {
 }
 
 void LiveEngine::run_consumer_loop() {
+    struct HeapEntry {
+        int64_t streamer_in_timestamp;
+        size_t streamer_id;
+    };
+    struct HeapEntryCompare {
+        bool operator()(const HeapEntry& lhs, const HeapEntry& rhs) const {
+            if (lhs.streamer_in_timestamp != rhs.streamer_in_timestamp) {
+                return lhs.streamer_in_timestamp > rhs.streamer_in_timestamp;
+            }
+            return lhs.streamer_id > rhs.streamer_id;
+        }
+    };
+
+    std::priority_queue<HeapEntry, std::vector<HeapEntry>, HeapEntryCompare> ready_heap;
+    std::vector<uint8_t> streamer_in_heap(this->max_streamer_id + 1, 0);
+
+    auto enqueue_streamer_head = [&](const size_t streamer_id, LiveStreamer* streamer) {
+        if (!streamer || streamer_id >= streamer_in_heap.size() || streamer_in_heap[streamer_id] != 0) {
+            return;
+        }
+        const Event* head_event = streamer->peek_event();
+        if (!head_event) {
+            return;
+        }
+        ready_heap.push(HeapEntry{head_event->get_streamer_in_timestamp(), streamer_id});
+        streamer_in_heap[streamer_id] = 1;
+    };
+
+    auto rescan_streamers = [&]() {
+        for (const auto& kv : this->streamers) {
+            enqueue_streamer_head(kv.first, kv.second.get());
+        }
+    };
+
+    rescan_streamers();
+
     size_t idle_cycles = 0;
+    size_t processed_events = 0;
+    static constexpr size_t kRescanEveryNEvents = 64;
 
     while (this->running.load(std::memory_order_acquire)) {
-        LiveStreamer* selected_streamer = nullptr;
-        size_t selected_streamer_id = 0;
-        int64_t selected_ts = std::numeric_limits<int64_t>::max();
-
-        for (const auto& kv : this->streamers) {
-            if (!kv.second) {
-                continue;
-            }
-            const Event* head_event = kv.second->peek_event();
-            if (!head_event) {
-                continue;
-            }
-
-            const int64_t event_ts = head_event->get_streamer_in_timestamp();
-            if (!selected_streamer
-                || event_ts < selected_ts
-                || (event_ts == selected_ts && kv.first < selected_streamer_id)) {
-                selected_streamer = kv.second.get();
-                selected_streamer_id = kv.first;
-                selected_ts = event_ts;
-            }
+        if (ready_heap.empty() || (processed_events % kRescanEveryNEvents) == 0) {
+            rescan_streamers();
         }
 
-        if (!selected_streamer) {
+        if (ready_heap.empty()) {
             idle_cycles += 1;
             if (idle_cycles < 1024) {
                 std::this_thread::yield();
@@ -266,11 +302,45 @@ void LiveEngine::run_consumer_loop() {
             continue;
         }
 
+        const HeapEntry candidate = ready_heap.top();
+        ready_heap.pop();
+
+        if (candidate.streamer_id >= streamer_in_heap.size()) {
+            continue;
+        }
+        streamer_in_heap[candidate.streamer_id] = 0;
+
+        const auto streamer_it = this->streamers.find(candidate.streamer_id);
+        if (streamer_it == this->streamers.end() || !streamer_it->second) {
+            continue;
+        }
+        LiveStreamer* selected_streamer = streamer_it->second.get();
+
+        const Event* head_event = selected_streamer->peek_event();
+        if (!head_event) {
+            continue;
+        }
+
+        const int64_t current_head_ts = head_event->get_streamer_in_timestamp();
+        if (current_head_ts != candidate.streamer_in_timestamp) {
+            ready_heap.push(HeapEntry{current_head_ts, candidate.streamer_id});
+            streamer_in_heap[candidate.streamer_id] = 1;
+            continue;
+        }
+
         idle_cycles = 0;
         LiveStreamer::EventPtr event;
         if (!selected_streamer->pop_event(event) || !event) {
             continue;
         }
+
+        const Event* next_head_event = selected_streamer->peek_event();
+        if (next_head_event) {
+            ready_heap.push(HeapEntry{next_head_event->get_streamer_in_timestamp(), candidate.streamer_id});
+            streamer_in_heap[candidate.streamer_id] = 1;
+        }
+
+        processed_events += 1;
         this->process_event(std::move(event));
     }
 }

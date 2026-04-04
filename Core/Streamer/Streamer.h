@@ -81,6 +81,7 @@ public:
 
 protected:
     std::ifstream file;
+    int64_t current_capture_server_in_timestamp;
     WideMarketByPriceMessage current_message;
 };
 

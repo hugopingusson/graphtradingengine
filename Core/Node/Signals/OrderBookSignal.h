@@ -56,6 +56,18 @@ class Vwap:public SingleInputConsumer {
 
 };
 
+class TopOfBookImbalance : public SingleInputConsumer {
+public:
+    TopOfBookImbalance();
+    ~TopOfBookImbalance() override = default;
+    TopOfBookImbalance(MarketOrderBook* market);
+
+    void compute() override;
+
+protected:
+    MarketOrderBook* market;
+};
+
 
 
 
