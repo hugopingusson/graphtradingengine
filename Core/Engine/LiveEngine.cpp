@@ -247,13 +247,13 @@ bool LiveEngine::is_running() const {
 
 void LiveEngine::run_consumer_loop() {
     struct HeapEntry {
-        int64_t streamer_in_timestamp;
+        int64_t reception_timestamp;
         size_t streamer_id;
     };
     struct HeapEntryCompare {
         bool operator()(const HeapEntry& lhs, const HeapEntry& rhs) const {
-            if (lhs.streamer_in_timestamp != rhs.streamer_in_timestamp) {
-                return lhs.streamer_in_timestamp > rhs.streamer_in_timestamp;
+            if (lhs.reception_timestamp != rhs.reception_timestamp) {
+                return lhs.reception_timestamp > rhs.reception_timestamp;
             }
             return lhs.streamer_id > rhs.streamer_id;
         }
@@ -270,7 +270,7 @@ void LiveEngine::run_consumer_loop() {
         if (!head_event) {
             return;
         }
-        ready_heap.push(HeapEntry{head_event->get_streamer_in_timestamp(), streamer_id});
+        ready_heap.push(HeapEntry{head_event->get_reception_timestamp(), streamer_id});
         streamer_in_heap[streamer_id] = 1;
     };
 
@@ -321,8 +321,8 @@ void LiveEngine::run_consumer_loop() {
             continue;
         }
 
-        const int64_t current_head_ts = head_event->get_streamer_in_timestamp();
-        if (current_head_ts != candidate.streamer_in_timestamp) {
+        const int64_t current_head_ts = head_event->get_reception_timestamp();
+        if (current_head_ts != candidate.reception_timestamp) {
             ready_heap.push(HeapEntry{current_head_ts, candidate.streamer_id});
             streamer_in_heap[candidate.streamer_id] = 1;
             continue;
@@ -336,7 +336,7 @@ void LiveEngine::run_consumer_loop() {
 
         const Event* next_head_event = selected_streamer->peek_event();
         if (next_head_event) {
-            ready_heap.push(HeapEntry{next_head_event->get_streamer_in_timestamp(), candidate.streamer_id});
+            ready_heap.push(HeapEntry{next_head_event->get_reception_timestamp(), candidate.streamer_id});
             streamer_in_heap[candidate.streamer_id] = 1;
         }
 

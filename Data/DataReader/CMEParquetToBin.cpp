@@ -16,7 +16,7 @@
 
 #include <arrow/api.h>
 #include <arrow/io/api.h>
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <parquet/arrow/reader.h>
 #include <boost/filesystem.hpp>
 
@@ -58,34 +58,6 @@ shared_ptr<ArrayT> get_array_by_name(const shared_ptr<arrow::Table>& table, cons
     throw std::runtime_error(
         fmt::format("Column '{}' has {} chunks; expected 1 chunk per row-group read", name, chunked->num_chunks())
     );
-}
-
-char to_upper_ascii(const string_view value) {
-    if (value.empty()) {
-        return '\0';
-    }
-    return static_cast<char>(std::toupper(static_cast<unsigned char>(value[0])));
-}
-
-Action parse_action(const string_view action_value) {
-    switch (to_upper_ascii(action_value)) {
-        case 'A': return Action::ADD;
-        case 'C': return Action::CANCEL;
-        case 'M': return Action::MODIFY;
-        case 'T': return Action::TRADE;
-        default:
-            throw std::runtime_error(fmt::format("Unsupported action value '{}'", string(action_value)));
-    }
-}
-
-Side parse_side(const string_view side_value) {
-    switch (to_upper_ascii(side_value)) {
-        case 'B': return Side::BID;
-        case 'A': return Side::ASK;
-        case 'N': return Side::NEUTRAL;
-        default:
-            throw std::runtime_error(fmt::format("Unsupported side value '{}'", string(side_value)));
-    }
 }
 
 vector<string> build_required_column_names() {
@@ -164,7 +136,7 @@ string extract_instrument_from_parquet_path(const path& parquet_path) {
 
 CMEParquetToBin::CMEParquetToBin()
     : parquet_root("/media/hugo/T7/market_data/databento/mbp10"),
-      bin_root("/media/hugo/T7/market_data/databento/mbp10_bin") {}
+      bin_root("/media/hugo/T7/market_data_bin/databento/mbp10") {}
 
 CMEParquetToBin::CMEParquetToBin(string parquet_root, string bin_root)
     : parquet_root(std::move(parquet_root)), bin_root(std::move(bin_root)) {}
@@ -309,26 +281,56 @@ void CMEParquetToBin::convert_file_to_bin(const string& parquet_file_path, const
                 throw std::runtime_error(fmt::format("Null action/side encountered at row {} in '{}'", i, parquet_file_path));
             }
 
-            BacktestWideMarketByPriceRow row{};
+            MarketByPriceEventPod row{};
 
-            row.market_time_stamp.order_gateway_in_timestamp = ts_event_arr->Value(i);
-            row.capture_server_in_timestamp = ts_recv_arr->Value(i);
-            row.market_time_stamp.data_gateway_out_timestamp =
-                row.capture_server_in_timestamp - static_cast<int64_t>(ts_in_delta_arr->Value(i));
+            row.message.market_time_stamp.order_gateway_in_timestamp = ts_event_arr->Value(i);
+            row.reception_timestamp = ts_recv_arr->Value(i);
+            row.message.market_time_stamp.data_gateway_out_timestamp =
+                row.reception_timestamp - static_cast<int64_t>(ts_in_delta_arr->Value(i));
+            row.location = Location::CHI;
+            row.listener = Listener::DATABENTO;
 
             const auto action_view = action_arr->GetView(i);
             const auto side_view = side_arr->GetView(i);
-            row.order.action = parse_action(string_view(action_view.data(), action_view.size()));
-            row.order.side = parse_side(string_view(side_view.data(), side_view.size()));
-            row.order.layer = static_cast<int32_t>(depth_arr->Value(i));
-            row.order.price = price_arr->Value(i);
-            row.order.size = static_cast<double>(size_arr->Value(i));
+            auto to_upper_ascii = [](const string_view value) -> char {
+                if (value.empty()) {
+                    return '\0';
+                }
+                return static_cast<char>(std::toupper(static_cast<unsigned char>(value[0])));
+            };
+            auto parse_action = [&](const string_view action_value) -> Action {
+                switch (to_upper_ascii(action_value)) {
+                    case 'A': return Action::ADD;
+                    case 'C': return Action::CANCEL;
+                    case 'M': return Action::MODIFY;
+                    case 'T': return Action::TRADE;
+                    default:
+                        throw std::runtime_error(fmt::format("Unsupported action value '{}'", string(action_value)));
+                }
+            };
+            auto parse_side = [&](const string_view side_value) -> Side {
+                switch (to_upper_ascii(side_value)) {
+                    case 'B': return Side::BID;
+                    case 'A': return Side::ASK;
+                    case 'N': return Side::NEUTRAL;
+                    default:
+                        throw std::runtime_error(fmt::format("Unsupported side value '{}'", string(side_value)));
+                }
+            };
+
+            row.message.order.action = parse_action(string_view(action_view.data(), action_view.size()));
+            row.message.order.side = parse_side(string_view(side_view.data(), side_view.size()));
+            row.message.order.layer = static_cast<int32_t>(depth_arr->Value(i));
+            row.message.order.price = price_arr->Value(i);
+            row.message.order.size = static_cast<double>(size_arr->Value(i));
 
             for (size_t level = 0; level < kBookLevels; ++level) {
-                row.order_book_snapshot_data.bid_price[level] = bid_px_arr[level]->Value(i);
-                row.order_book_snapshot_data.ask_price[level] = ask_px_arr[level]->Value(i);
-                row.order_book_snapshot_data.bid_size[level] = static_cast<double>(bid_sz_arr[level]->Value(i));
-                row.order_book_snapshot_data.ask_size[level] = static_cast<double>(ask_sz_arr[level]->Value(i));
+                row.message.order_book_snapshot_data.bid_price[level] = bid_px_arr[level]->Value(i);
+                row.message.order_book_snapshot_data.ask_price[level] = ask_px_arr[level]->Value(i);
+                row.message.order_book_snapshot_data.bid_size[level] = static_cast<double>(bid_sz_arr[level]->Value(i));
+                row.message.order_book_snapshot_data.ask_size[level] = static_cast<double>(ask_sz_arr[level]->Value(i));
+                row.message.order_book_snapshot_data.bid_count[level] = 0;
+                row.message.order_book_snapshot_data.ask_count[level] = 0;
             }
 
             output.write(reinterpret_cast<const char*>(&row), sizeof(row));

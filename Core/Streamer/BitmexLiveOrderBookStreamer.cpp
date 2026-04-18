@@ -277,13 +277,12 @@ bool BitmexLiveOrderBookStreamer::handle_partial(const std::vector<ParsedL2Row>&
     market_ts.order_gateway_in_timestamp = reference_exchange_ts;
     market_ts.data_gateway_out_timestamp = streamer_ts;
 
-    MarketByPriceMessage message{};
+    SnapshotMessage message{};
     message.market_time_stamp = market_ts;
     message.order_book_snapshot_data = snapshot;
 
     this->mark_bootstrapped();
     return this->emit_mbp_event(
-        reference_exchange_ts,
         streamer_ts,
         this->get_order_book_source_node_id(),
         message
@@ -363,12 +362,11 @@ bool BitmexLiveOrderBookStreamer::handle_deltas(const std::string& action, const
         update.action = update_action;
         update.side = side;
 
-        MarketUpdateMessage message{};
+        UpdateMessage message{};
         message.market_time_stamp = market_ts;
         message.update = update;
 
         pushed_any |= this->emit_update_event(
-            exchange_ts,
             streamer_ts,
             this->get_order_book_source_node_id(),
             message

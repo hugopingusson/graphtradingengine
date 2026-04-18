@@ -1,0 +1,186 @@
+project:
+  name: GraphTradingEngine
+  language: C++20
+  type: event_based_trading_engine
+  runtime_modes:
+    - backtest
+    - live
+
+purpose:
+  summary: >
+    Execute trading logic as a dependency graph where market/heartbeat events update
+    producer nodes and propagate recomputation to consumer signal nodes.
+  current_main_mode: live
+  current_main_example:
+    exchange: binance
+    instrument: BTCUSDT
+    graph: MarketOrderBook -> TopOfBookImbalance -> Print
+
+repository_map:
+  Core/Graph:
+    - Event.h
+    - Event.cpp
+    - Graph.h
+    - Graph.cpp
+  Core/Node/Base:
+    - Node.h
+    - Node.cpp
+    - MarketNode.h
+    - MarketNode.cpp
+    - HeartBeat.h
+    - HeartBeat.cpp
+  Core/Node/Signals:
+    - OrderBookSignal.h
+    - OrderBookSignal.cpp
+    - MathSignal.h
+    - MathSignal.cpp
+  Core/Streamer:
+    - Streamer.h
+    - Streamer.cpp
+    - LiveStreamer.h
+    - LiveStreamer.cpp
+    - BitmexLiveOrderBookStreamer.*
+    - BinanceLiveOrderBookStreamer.*
+    - DeribitLiveOrderBookStreamer.*
+    - OkxLiveOrderBookStreamer.*
+  Core/Engine:
+    - BacktestEngine.h
+    - BacktestEngine.cpp
+    - LiveEngine.h
+    - LiveEngine.cpp
+  Data/DataStructure:
+    - DataStructure.h
+  Data/DataReader:
+    - CMEParquetToBin.*
+    - CryptolakeParquetToBin.*
+    - ParquetDataReader.*
+  Helper:
+    - TimeHelper.*
+    - DataBaseHelper.*
+    - FutureHelper.*
+    - SaphirManager.*
+  Logger:
+    - Logger.h
+    - Logger.cpp
+
+core_concepts:
+  event:
+    base_fields:
+      - capture_server_in_timestamp
+      - streamer_in_timestamp
+      - source_id_trigger
+    market_subtypes:
+      - SnapshotEvent
+      - OrderEvent
+      - UpdateEvent
+      - TradeEvent
+    dispatch_style: double_dispatch_to_MarketOrderBook
+  graph:
+    producer_container: map<int, Producer*>
+    consumer_container: map<int, Consumer*>
+    adjacency_map: map<int, vector<int>>
+    update_path: precomputed_per_source_topology
+    update_trigger: graph.update(source_id)
+  node:
+    producer: receives Event in on_event
+    consumer: dirty_flag + update() bool changed
+    single_input_consumer:
+      parent_validity_checked_in_update: true
+      compute_sets_value_and_valid: true
+
+data_model:
+  enums:
+    Action: [ADD, CANCEL, MODIFY, TRADE]
+    Side: [BID, ASK, NEUTRAL]
+  constants:
+    kBookLevels: 10
+  market_timestamp:
+    fields:
+      - order_gateway_in_timestamp
+      - data_gateway_out_timestamp
+  messages:
+    - SnapshotMessage
+    - OrderMessage
+    - UpdateMessage
+    - MarketByPriceMessage
+  backtest_row:
+    name: BacktestWideMarketByPriceRow
+    fields:
+      - capture_server_in_timestamp
+      - market_time_stamp
+      - order_book_snapshot_data
+      - order
+
+engines:
+  backtest:
+    init:
+      - graph.resolve_update_path
+      - build_streamer_container
+    loop_ordering: min_heap_on_capture_timestamp
+    streamer_types:
+      - DatabaseWMBPBacktestStreamer
+      - HeartBeatBackTestStreamer
+    note: DatabaseWMBPBacktestStreamer currently emits SnapshotEvent only
+  live:
+    init:
+      - graph.resolve_update_path
+      - build_streamer_container_from_producers
+    threading:
+      producer_threads: one_per_streamer
+      consumer_thread: run_consumer_loop_on_caller_thread
+    dequeue_ordering: min_heap_on_event.streamer_in_timestamp
+    idle_strategy:
+      - std::this_thread::yield
+      - sleep_for_50us
+
+live_streamers:
+  bitmex:
+    base: LiveUpdateDeltaOrderBookStreamer
+    feed: orderBookL2_25
+    emits:
+      partial: SnapshotEvent
+      delta: UpdateEvent
+  binance:
+    base: LiveSnapshotOrderBookStreamer
+    feed: depth20@100ms
+    emits: SnapshotEvent
+  deribit:
+    base: LiveUpdateDeltaOrderBookStreamer
+    feed: book.<instrument>.none.10.100ms
+    emits:
+      snapshot: SnapshotEvent
+      change: UpdateEvent
+  okx:
+    base: LiveSnapshotOrderBookStreamer
+    feed: books5
+    emits: SnapshotEvent
+
+storage:
+  path_pattern: "<db_root>/<exchange>/<instrument>/<date>.bin"
+  cme_converter: CMEParquetToBin
+  cryptolake_converter: CryptolakeParquetToBin
+  config_root: "~/Saphir"
+  config_files:
+    - DatabaseConfig.json
+    - InstrumentConfig.json
+
+invariants:
+  - graph.update is called after producer.on_event for every processed event
+  - source_id_trigger must match a registered producer node id
+  - SingleInputConsumer compute must not assume parent validity without update() gate
+  - snapshot validity in MarketOrderBook requires both sides and bid < ask
+
+known_constraints:
+  - order book ladders use std::map (not flat arrays)
+  - most crypto live feeds are websocket json parsing heavy
+  - live engine run() is blocking until stop requested
+  - BacktestWide row carries order, but current backtest processing is snapshot-only
+
+recommended_read_order:
+  - docs/architecture/project-overview.md
+  - docs/architecture/event-and-data-model.md
+  - docs/architecture/graph-and-node-model.md
+  - docs/engines/live.md
+  - docs/engines/backtest.md
+  - docs/streamers/exchanges.md
+  - docs/data/storage-and-converters.md

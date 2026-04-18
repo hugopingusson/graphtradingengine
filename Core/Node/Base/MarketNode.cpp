@@ -135,9 +135,9 @@ double MarketOrderBook::bary() const {
 
 bool MarketOrderBook::check_staleness(HeartBeatEvent& hb) {
     static constexpr int64_t kStaleThresholdNs = 3'000'000'000LL;
-    if (hb.get_streamer_in_timestamp() - this->last_streamer_in_timestamp > kStaleThresholdNs) {
+    if (hb.get_reception_timestamp() - this->last_reception_timestamp > kStaleThresholdNs) {
         if (this->logger) {
-            this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last streamer in was 3 sec ago at {}", this->name, Timestamp::unix_to_string(this->last_streamer_in_timestamp)));
+            this->logger->log_info("MarketOrderBook", fmt::format("{} is now stale, setting to invalid, last reception was 3 sec ago at {}", this->name, Timestamp::unix_to_string(this->last_reception_timestamp)));
         }
         this->valid=false;
         return false;
@@ -275,28 +275,32 @@ void MarketOrderBook::handle(HeartBeatEvent& hb) {
 }
 
 void MarketOrderBook::handle(MarketEvent& /*ev*/) {
-    // Par défaut, ne rien faire. Les sous-types spécifiques traiteront.
+    // Default behavior: no-op. Specific event subtypes are handled by overloads.
 }
 
-// Specific handler for OrderBookSnapshotEvent
-void MarketOrderBook::handle(MBPEvent& mbp_event) {
-    this->last_streamer_in_timestamp = mbp_event.get_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = mbp_event.get_capture_server_in_timestamp();
+void MarketOrderBook::handle(MarketByPriceEvent& mbp_event) {
+    this->last_reception_timestamp = mbp_event.get_reception_timestamp();
     this->last_order_gateway_in_timestamp = mbp_event.get_last_market_timestamp().order_gateway_in_timestamp;
     snapshot_to_ladder(mbp_event.get_snapshot_data(),this->bid_ladder,this->ask_ladder);
     this->valid=check_snapshot();
 }
 
-void MarketOrderBook::handle(MBOEvent& mbo_event) {
-    this->last_streamer_in_timestamp = mbo_event.get_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = mbo_event.get_capture_server_in_timestamp();
+// Specific handler for OrderBookSnapshotEvent
+void MarketOrderBook::handle(SnapshotEvent& mbp_event) {
+    this->last_reception_timestamp = mbp_event.get_reception_timestamp();
+    this->last_order_gateway_in_timestamp = mbp_event.get_last_market_timestamp().order_gateway_in_timestamp;
+    snapshot_to_ladder(mbp_event.get_snapshot_data(),this->bid_ladder,this->ask_ladder);
+    this->valid=check_snapshot();
+}
+
+void MarketOrderBook::handle(OrderEvent& mbo_event) {
+    this->last_reception_timestamp = mbo_event.get_reception_timestamp();
     this->last_order_gateway_in_timestamp = mbo_event.get_last_market_timestamp().order_gateway_in_timestamp;
     this->valid=this->match(mbo_event.get_order());
 }
 
 void MarketOrderBook::handle(UpdateEvent& update_event) {
-    this->last_streamer_in_timestamp = update_event.get_streamer_in_timestamp();
-    this->last_capture_server_in_timestamp = update_event.get_capture_server_in_timestamp();
+    this->last_reception_timestamp = update_event.get_reception_timestamp();
     this->last_order_gateway_in_timestamp = update_event.get_last_market_timestamp().order_gateway_in_timestamp;
     this->update(update_event.get_update().level,update_event.get_update().side,update_event.get_update().action);
     this->valid=check_snapshot();

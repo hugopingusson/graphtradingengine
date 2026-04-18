@@ -8,15 +8,31 @@
 
 
 
-Event::Event():capture_server_in_timestamp(int64_t()),streamer_in_timestamp(int64_t()),source_id_trigger(){}
-Event::Event(const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger):capture_server_in_timestamp(capture_server_in_timestamp),streamer_in_timestamp(streamer_in_timestamp),source_id_trigger(source_id_trigger) {}
+Event::Event()
+    : reception_timestamp(int64_t()),
+      source_id_trigger(),
+      location(Location::UNKNOWN),
+      listener(Listener::UNKNOWN) {}
 
-int64_t Event::get_capture_server_in_timestamp() const {
-    return this->capture_server_in_timestamp;
+Event::Event(const int64_t& reception_timestamp,
+             const int& source_id_trigger,
+             const Location& location,
+             const Listener& listener)
+    : reception_timestamp(reception_timestamp),
+      source_id_trigger(source_id_trigger),
+      location(location),
+      listener(listener) {}
+
+int64_t Event::get_reception_timestamp() const {
+    return this->reception_timestamp;
 }
 
-int64_t Event::get_streamer_in_timestamp() const {
-  return this->streamer_in_timestamp;
+Location Event::get_location() const {
+    return this->location;
+}
+
+Listener Event::get_listener() const {
+    return this->listener;
 }
 
 int Event::get_source_id_trigger() const {
@@ -26,7 +42,13 @@ int Event::get_source_id_trigger() const {
 
 
 HeartBeatEvent::HeartBeatEvent():frequency(){}
-HeartBeatEvent::HeartBeatEvent(const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const double& clock_frequency):Event(capture_server_in_timestamp,streamer_in_timestamp,source_id_trigger),frequency(clock_frequency){}
+HeartBeatEvent::HeartBeatEvent(const int64_t& reception_timestamp,
+                               const int& source_id_trigger,
+                               const double& clock_frequency,
+                               const Location& location,
+                               const Listener& listener)
+    : Event(reception_timestamp,source_id_trigger,location,listener),
+      frequency(clock_frequency) {}
 
 
 double HeartBeatEvent::get_frequency() const {
@@ -36,7 +58,13 @@ double HeartBeatEvent::get_frequency() const {
 
 
 MarketEvent::MarketEvent():Event(),instrument() {}
-MarketEvent::MarketEvent(const string& instrument,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger):Event(capture_server_in_timestamp,streamer_in_timestamp,source_id_trigger),instrument(instrument) {}
+MarketEvent::MarketEvent(const string& instrument,
+                         const int64_t& reception_timestamp,
+                         const int& source_id_trigger,
+                         const Location& location,
+                         const Listener& listener)
+    : Event(reception_timestamp,source_id_trigger,location,listener),
+      instrument(instrument) {}
 
 const string& MarketEvent::get_instrument() const {
     return this->instrument;
@@ -51,11 +79,15 @@ void MarketEvent::dispatchTo(MarketOrderBook& target) {
     target.handle(*this);
 }
 
-void MBPEvent::dispatchTo(MarketOrderBook& target) {
+void MarketByPriceEvent::dispatchTo(MarketOrderBook& target) {
     target.handle(*this);
 }
 
-void MBOEvent::dispatchTo(MarketOrderBook& target) {
+void SnapshotEvent::dispatchTo(MarketOrderBook& target) {
+    target.handle(*this);
+}
+
+void OrderEvent::dispatchTo(MarketOrderBook& target) {
     target.handle(*this);
 }
 
@@ -63,41 +95,88 @@ void UpdateEvent::dispatchTo(MarketOrderBook& target) {
     target.handle(*this);
 }
 
-MBPEvent::MBPEvent():MarketEvent(),mbp_message() {}
-MBPEvent::MBPEvent(const string& instrument,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const MarketByPriceMessage& mbp_message):MarketEvent(instrument,capture_server_in_timestamp,streamer_in_timestamp,source_id_trigger),mbp_message(mbp_message){}
+MarketByPriceEvent::MarketByPriceEvent():MarketEvent(),message() {}
+MarketByPriceEvent::MarketByPriceEvent(const string& instrument,
+                                       const int64_t& reception_timestamp,
+                                       const int& source_id_trigger,
+                                       const MarketByPriceMessage& message,
+                                       const Location& location,
+                                       const Listener& listener)
+    : MarketEvent(instrument,reception_timestamp,source_id_trigger,location,listener),
+      message(message) {}
 
-MarketByPriceMessage MBPEvent::get_message() const {
+MarketByPriceMessage MarketByPriceEvent::get_message() const {
+    return this->message;
+}
+
+SnapshotData MarketByPriceEvent::get_snapshot_data() const {
+    return this->message.order_book_snapshot_data;
+}
+
+Order MarketByPriceEvent::get_order() const {
+    return this->message.order;
+}
+
+MarketTimeStamp MarketByPriceEvent::get_last_market_timestamp() const {
+    return this->message.market_time_stamp;
+}
+
+SnapshotEvent::SnapshotEvent():MarketEvent(),mbp_message() {}
+SnapshotEvent::SnapshotEvent(const string& instrument,
+                             const int64_t& reception_timestamp,
+                             const int& source_id_trigger,
+                             const SnapshotMessage& mbp_message,
+                             const Location& location,
+                             const Listener& listener)
+    : MarketEvent(instrument,reception_timestamp,source_id_trigger,location,listener),
+      mbp_message(mbp_message) {}
+
+SnapshotMessage SnapshotEvent::get_message() const {
   return this->mbp_message;
 }
 
-SnapshotData MBPEvent::get_snapshot_data() const {
+SnapshotData SnapshotEvent::get_snapshot_data() const {
     return this->mbp_message.order_book_snapshot_data;
 }
 
-MarketTimeStamp MBPEvent::get_last_market_timestamp() const {
+MarketTimeStamp SnapshotEvent::get_last_market_timestamp() const {
     return this->mbp_message.market_time_stamp;
 }
 
 
-MBOEvent::MBOEvent():MarketEvent(),mbo_message() {}
-MBOEvent::MBOEvent(const string& instrument,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const MarketByOrderMessage& mbo_message):MarketEvent(instrument,capture_server_in_timestamp,streamer_in_timestamp,source_id_trigger),mbo_message(mbo_message){}
+OrderEvent::OrderEvent():MarketEvent(),mbo_message() {}
+OrderEvent::OrderEvent(const string& instrument,
+                       const int64_t& reception_timestamp,
+                       const int& source_id_trigger,
+                       const OrderMessage& mbo_message,
+                       const Location& location,
+                       const Listener& listener)
+    : MarketEvent(instrument,reception_timestamp,source_id_trigger,location,listener),
+      mbo_message(mbo_message) {}
 
-MarketByOrderMessage MBOEvent::get_message() const {
+OrderMessage OrderEvent::get_message() const {
     return this->mbo_message;
 }
-Order MBOEvent::get_order() const {
+Order OrderEvent::get_order() const {
     return this->mbo_message.order;
 }
 
-MarketTimeStamp MBOEvent::get_last_market_timestamp() const {
+MarketTimeStamp OrderEvent::get_last_market_timestamp() const {
     return this->mbo_message.market_time_stamp;
 }
 
 UpdateEvent::UpdateEvent():MarketEvent(),update_message() {}
-UpdateEvent::UpdateEvent(const string& instrument,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const MarketUpdateMessage& update_message):MarketEvent(instrument,capture_server_in_timestamp,streamer_in_timestamp,source_id_trigger),update_message(update_message){}
+UpdateEvent::UpdateEvent(const string& instrument,
+                         const int64_t& reception_timestamp,
+                         const int& source_id_trigger,
+                         const UpdateMessage& update_message,
+                         const Location& location,
+                         const Listener& listener)
+    : MarketEvent(instrument,reception_timestamp,source_id_trigger,location,listener),
+      update_message(update_message) {}
 
 
-MarketUpdateMessage UpdateEvent::get_message() const {
+UpdateMessage UpdateEvent::get_message() const {
     return this->update_message;
 }
 
@@ -114,7 +193,17 @@ MarketTimeStamp UpdateEvent::get_last_market_timestamp() const {
 
 
 TradeEvent::TradeEvent():MarketEvent(),side(),trade_price(),base_quantity(),trade_market_timestamp() {}
-TradeEvent::TradeEvent(const string& instrument,const MarketTimeStamp& market_time_stamp,const int64_t& capture_server_in_timestamp,const int64_t& streamer_in_timestamp,const int& source_id_trigger,const Side& side,const double& trade_price,const double& base_quantity):MarketEvent(instrument,capture_server_in_timestamp,streamer_in_timestamp,source_id_trigger),trade_market_timestamp(market_time_stamp){
+TradeEvent::TradeEvent(const string& instrument,
+                       const MarketTimeStamp& market_time_stamp,
+                       const int64_t& reception_timestamp,
+                       const int& source_id_trigger,
+                       const Side& side,
+                       const double& trade_price,
+                       const double& base_quantity,
+                       const Location& location,
+                       const Listener& listener)
+    : MarketEvent(instrument,reception_timestamp,source_id_trigger,location,listener),
+      trade_market_timestamp(market_time_stamp){
     this->side=side;
     this->trade_price=trade_price;
     this->base_quantity=base_quantity;

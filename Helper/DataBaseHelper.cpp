@@ -7,7 +7,7 @@
 #include "SaphirManager.h"
 
 
-DataBaseHelper::DataBaseHelper():database_root("/media/hugo/T7/market_data/databento/mbp10_bin") {}
+DataBaseHelper::DataBaseHelper():database_root("/media/hugo/T7/market_data_bin/databento/mbp10") {}
 
 
 string DataBaseHelper::get_data_path(const string &date, const string &instrument, const string &exchange) {
@@ -48,4 +48,3 @@ string DataBaseHelper::get_data_path(const string &date, const string &instrumen
 //     path full_path = base_dir / contract_dir / file;
 //     return full_path.string();
 // }
-

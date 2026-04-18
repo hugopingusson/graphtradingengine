@@ -42,8 +42,20 @@ void BacktestStreamer::set_id(const size_t& id) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer():file(),current_capture_server_in_timestamp(),current_message() {}
-DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer(const string& instrument, const string& exchange):MarketStreamer(instrument,exchange),BacktestStreamer(),file(),current_capture_server_in_timestamp(),current_message() {}
+DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer()
+    : file(),
+      current_reception_timestamp(),
+      current_location(Location::UNKNOWN),
+      current_listener(Listener::UNKNOWN),
+      current_message() {}
+DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer(const string& instrument, const string& exchange)
+    : MarketStreamer(instrument,exchange),
+      BacktestStreamer(),
+      file(),
+      current_reception_timestamp(),
+      current_location(Location::UNKNOWN),
+      current_listener(Listener::UNKNOWN),
+      current_message() {}
 
 void DatabaseWMBPBacktestStreamer::set_and_route(const Timestamp& start, const Timestamp& /*end*/) {
 
@@ -63,8 +75,13 @@ void DatabaseWMBPBacktestStreamer::set_and_route(const Timestamp& start, const T
         throw std::runtime_error(fmt::format("Error when routing streamer {}, cannot open bin file {}", this->get_name(), data_path));
     }
     int64_t start_ts = start.unixtime();
-    while (this->get_current_heap_item().row < start_ts) {
-        this->advance();
+    if (!this->advance()) {
+        return;
+    }
+    while (this->current_reception_timestamp < start_ts) {
+        if (!this->advance()) {
+            return;
+        }
     }
     // return data_path;
 
@@ -77,21 +94,21 @@ string DatabaseWMBPBacktestStreamer::get_name() {
 }
 
 bool DatabaseWMBPBacktestStreamer::advance() {
-    BacktestWideMarketByPriceRow row;
-    file.read(reinterpret_cast<char*>(&row), sizeof(BacktestWideMarketByPriceRow));
-    if (file.gcount() != sizeof(BacktestWideMarketByPriceRow)) {
+    MarketByPriceEventPod row;
+    file.read(reinterpret_cast<char*>(&row), sizeof(MarketByPriceEventPod));
+    if (file.gcount() != sizeof(MarketByPriceEventPod)) {
         return false;
     }
 
-    this->current_message.market_time_stamp = row.market_time_stamp;
-    this->current_message.order_book_snapshot_data = row.order_book_snapshot_data;
-    this->current_message.order = row.order;
-    this->current_capture_server_in_timestamp = row.capture_server_in_timestamp;
+    this->current_message = row.message;
+    this->current_reception_timestamp = row.reception_timestamp;
+    this->current_location = row.location;
+    this->current_listener = row.listener;
     return true;
 }
 
 HeapItem DatabaseWMBPBacktestStreamer::get_current_heap_item() {
-    return {this->current_capture_server_in_timestamp,this->id};
+    return {this->current_reception_timestamp,this->id};
 }
 
 bool DatabaseWMBPBacktestStreamer::is_good() const {
@@ -99,30 +116,27 @@ bool DatabaseWMBPBacktestStreamer::is_good() const {
 }
 
 void DatabaseWMBPBacktestStreamer::process_current(Graph* graph) {
-    MarketByPriceMessage message;
-    message.market_time_stamp = this->current_message.market_time_stamp;
-    message.order_book_snapshot_data = this->current_message.order_book_snapshot_data;
-
-    MBPEvent event(
+    MarketByPriceEvent event(
         this->instrument,
-        this->current_capture_server_in_timestamp,
-        this->current_capture_server_in_timestamp,
+        this->current_reception_timestamp,
         this->order_book_source_node_id,
-        message
+        this->current_message,
+        this->current_location,
+        this->current_listener
     );
 
     graph->get_producer_container().find(this->order_book_source_node_id)->second->on_event(&event);
     graph->update(this->order_book_source_node_id);
 }
 
-WideMarketByPriceMessage DatabaseWMBPBacktestStreamer::get_current_message() const {
+MarketByPriceMessage DatabaseWMBPBacktestStreamer::get_current_message() const {
     return this->current_message;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-HeartBeatBackTestStreamer::HeartBeatBackTestStreamer():frequency(),heartbeat_source_node_id(),capture_in_server_timestamp(),end_capture_in_server_timestamp(){}
-HeartBeatBackTestStreamer::HeartBeatBackTestStreamer(const double& frequency):frequency(frequency),heartbeat_source_node_id(),capture_in_server_timestamp(),end_capture_in_server_timestamp(){}
+HeartBeatBackTestStreamer::HeartBeatBackTestStreamer():frequency(),heartbeat_source_node_id(),current_reception_timestamp(),end_reception_timestamp(){}
+HeartBeatBackTestStreamer::HeartBeatBackTestStreamer(const double& frequency):frequency(frequency),heartbeat_source_node_id(),current_reception_timestamp(),end_reception_timestamp(){}
 
 string HeartBeatBackTestStreamer::get_name() {
     return fmt::format("HeartBeatBackTestStreamer(frequency={})",std::to_string(frequency));
@@ -137,25 +151,25 @@ void HeartBeatBackTestStreamer::set_heartbeat_source_node_id(const int& heartbea
 }
 
 bool HeartBeatBackTestStreamer::advance() {
-    if (this->capture_in_server_timestamp >= this->end_capture_in_server_timestamp) {
+    if (this->current_reception_timestamp >= this->end_reception_timestamp) {
         return false;
     }
-    this->capture_in_server_timestamp += int64_t(1e9 * this->frequency);
-    return this->capture_in_server_timestamp <= this->end_capture_in_server_timestamp;
+    this->current_reception_timestamp += int64_t(1e9 * this->frequency);
+    return this->current_reception_timestamp <= this->end_reception_timestamp;
 }
 
 bool HeartBeatBackTestStreamer::is_good() const {
-    return this->capture_in_server_timestamp <= this->end_capture_in_server_timestamp;
+    return this->current_reception_timestamp <= this->end_reception_timestamp;
 }
 
 HeapItem HeartBeatBackTestStreamer::get_current_heap_item() {
-    return {this->capture_in_server_timestamp,this->id};
+    return {this->current_reception_timestamp,this->id};
 }
 
 
 void HeartBeatBackTestStreamer::set_and_route(const Timestamp &start, const Timestamp &end) {
-    this->capture_in_server_timestamp=start.unixtime();
-    this->end_capture_in_server_timestamp=end.unixtime();
+    this->current_reception_timestamp=start.unixtime();
+    this->end_reception_timestamp=end.unixtime();
 }
 
 void HeartBeatBackTestStreamer::process_current(Graph* graph) {
@@ -170,10 +184,11 @@ void HeartBeatBackTestStreamer::process_current(Graph* graph) {
     }
 
     HeartBeatEvent event(
-        this->capture_in_server_timestamp,
-        this->capture_in_server_timestamp,
+        this->current_reception_timestamp,
         this->heartbeat_source_node_id,
-        this->frequency
+        this->frequency,
+        Location::UNKNOWN,
+        Listener::PRODUCTION
     );
     producer_it->second->on_event(&event);
     graph->update(this->heartbeat_source_node_id);

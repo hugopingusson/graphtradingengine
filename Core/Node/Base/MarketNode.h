@@ -69,8 +69,9 @@ class MarketOrderBook:public Market  {
     void on_event(Event* event) override; // entry point
     // handlers used by double-dispatch
     void handle(MarketEvent& event);
-    void handle(MBPEvent& event);
-    void handle(MBOEvent& event);
+    void handle(MarketByPriceEvent& event);
+    void handle(SnapshotEvent& event);
+    void handle(OrderEvent& event);
     void handle(UpdateEvent& event);
     void handle(HeartBeatEvent& event);
 

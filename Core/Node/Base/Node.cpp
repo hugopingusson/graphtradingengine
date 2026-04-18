@@ -4,8 +4,7 @@
 Node::Node() {
     sequence_number = int64_t();
     last_order_gateway_in_timestamp=int64_t();
-    last_streamer_in_timestamp=int64_t();
-    last_capture_server_in_timestamp=int64_t();
+    last_reception_timestamp=int64_t();
     valid=false;
     name=string();
     logger=nullptr;
@@ -33,12 +32,8 @@ int64_t Node::get_last_order_gateway_in_timestamp() const {
     return this->last_order_gateway_in_timestamp;
 }
 
-int64_t Node::get_last_streamer_in_timestamp() const {
-    return this->last_streamer_in_timestamp;
-}
-
-int64_t Node::get_last_capture_server_in_timestamp() const {
-    return this->last_capture_server_in_timestamp;
+int64_t Node::get_last_reception_timestamp() const {
+    return this->last_reception_timestamp;
 }
 
 

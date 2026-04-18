@@ -26,9 +26,8 @@ class Node {
     [[nodiscard]] string get_name() const;
     [[nodiscard]] int get_node_id() const;
     [[nodiscard]] bool is_valid() const;
-    [[nodiscard]] int64_t get_last_streamer_in_timestamp() const;
+    [[nodiscard]] int64_t get_last_reception_timestamp() const;
     [[nodiscard]] int64_t get_last_order_gateway_in_timestamp() const;
-    [[nodiscard]] int64_t get_last_capture_server_in_timestamp() const;
 
     void set_name(const string& name);
     void set_logger(Logger* main_logger);
@@ -38,9 +37,8 @@ class Node {
     int node_id;
     int64_t sequence_number;
     string name;
-    int64_t last_streamer_in_timestamp; // reception timestamp
-    int64_t last_order_gateway_in_timestamp; //exchange timestamp
-    int64_t last_capture_server_in_timestamp;
+    int64_t last_reception_timestamp;
+    int64_t last_order_gateway_in_timestamp; // exchange timestamp
     bool valid;
     Logger* logger;
 
@@ -69,7 +67,7 @@ public:
 
     virtual bool update()=0;
 
-    // forward exécute le calcul et retourne true si l'état a changé (valeur/validité), false sinon
+    // update executes the computation and returns true if state changed (value/validity), false otherwise
     // virtual bool forward() = 0;
 
 protected:

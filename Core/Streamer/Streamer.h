@@ -77,12 +77,14 @@ public:
     bool is_good() const override;
     void process_current(Graph* graph) override;
 
-    WideMarketByPriceMessage get_current_message() const;
+    MarketByPriceMessage get_current_message() const;
 
 protected:
     std::ifstream file;
-    int64_t current_capture_server_in_timestamp;
-    WideMarketByPriceMessage current_message;
+    int64_t current_reception_timestamp;
+    Location current_location;
+    Listener current_listener;
+    MarketByPriceMessage current_message;
 };
 
 class HeartBeatBackTestStreamer : public BacktestStreamer {
@@ -103,8 +105,8 @@ public:
 protected:
     double frequency;
     int heartbeat_source_node_id;
-    int64_t capture_in_server_timestamp;
-    int64_t end_capture_in_server_timestamp;
+    int64_t current_reception_timestamp;
+    int64_t end_reception_timestamp;
 };
 
 class BackTestStreamerContainer {

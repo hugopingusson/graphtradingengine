@@ -17,7 +17,7 @@
 #include <arrow/api.h>
 #include <arrow/io/api.h>
 #include <boost/filesystem.hpp>
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <parquet/arrow/reader.h>
 
 #include "../../Data/DataStructure/DataStructure.h"
@@ -229,7 +229,7 @@ string extract_instrument_from_parquet_path(const path& parquet_path) {
 
 CryptolakeParquetToBin::CryptolakeParquetToBin()
     : parquet_root("/media/hugo/T7/market_data/cryptolake/order_book"),
-      bin_root("/media/hugo/T7/market_data/cryptolake/order_book_bin") {}
+      bin_root("/media/hugo/T7/market_data_bin/cryptolake/order_book") {}
 
 CryptolakeParquetToBin::CryptolakeParquetToBin(string parquet_root, string bin_root)
     : parquet_root(std::move(parquet_root)), bin_root(std::move(bin_root)) {}
@@ -364,27 +364,30 @@ void CryptolakeParquetToBin::convert_file_to_bin(const string& parquet_file_path
                 throw std::runtime_error(fmt::format("Null exchange_time/reception_time at row {} in '{}'", i, parquet_file_path));
             }
 
-            BacktestWideMarketByPriceRow row{};
+            MarketByPriceEventPod row{};
 
             const auto exchange_time_view = exchange_time_arr->GetView(i);
             const auto reception_time_view = reception_time_arr->GetView(i);
-            row.market_time_stamp.order_gateway_in_timestamp =
+            row.message.market_time_stamp.order_gateway_in_timestamp =
                 parse_timestamp_to_ns(string_view(exchange_time_view.data(), exchange_time_view.size()));
-            row.capture_server_in_timestamp =
+            row.reception_timestamp =
                 parse_timestamp_to_ns(string_view(reception_time_view.data(), reception_time_view.size()));
-            row.market_time_stamp.data_gateway_out_timestamp = row.capture_server_in_timestamp;
-
-            row.order.side = Side::NEUTRAL;
-            row.order.action = Action::ADD;
-            row.order.layer = 0;
-            row.order.price = 0.0;
-            row.order.size = 0.0;
+            row.message.market_time_stamp.data_gateway_out_timestamp = row.reception_timestamp;
+            row.location = Location::UNKNOWN;
+            row.listener = Listener::CRYPTOLAKE;
+            row.message.order.side = Side::NEUTRAL;
+            row.message.order.action = Action::ADD;
+            row.message.order.layer = 0;
+            row.message.order.price = 0.0;
+            row.message.order.size = 0.0;
 
             for (size_t level = 0; level < kBookLevels; ++level) {
-                row.order_book_snapshot_data.bid_price[level] = bid_price_arr[level]->Value(i);
-                row.order_book_snapshot_data.bid_size[level] = bid_size_arr[level]->Value(i);
-                row.order_book_snapshot_data.ask_price[level] = ask_price_arr[level]->Value(i);
-                row.order_book_snapshot_data.ask_size[level] = ask_size_arr[level]->Value(i);
+                row.message.order_book_snapshot_data.bid_price[level] = bid_price_arr[level]->Value(i);
+                row.message.order_book_snapshot_data.bid_size[level] = bid_size_arr[level]->Value(i);
+                row.message.order_book_snapshot_data.ask_price[level] = ask_price_arr[level]->Value(i);
+                row.message.order_book_snapshot_data.ask_size[level] = ask_size_arr[level]->Value(i);
+                row.message.order_book_snapshot_data.bid_count[level] = 0;
+                row.message.order_book_snapshot_data.ask_count[level] = 0;
             }
 
             output.write(reinterpret_cast<const char*>(&row), sizeof(row));

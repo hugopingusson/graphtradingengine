@@ -105,9 +105,9 @@ void SaphirManager::ensure_database_config_exists() const {
 
     ptree root;
     ptree databases;
-    databases.put("cme", "/media/hugo/T7/market_data/databento/mbp10_bin");
-    databases.put("binance", "/media/hugo/T7/market_data/cryptolake/order_book_bin");
-    databases.put("okx", "/media/hugo/T7/market_data/cryptolake/order_book_bin");
+    databases.put("cme", "/media/hugo/T7/market_data_bin/databento/mbp10");
+    databases.put("binance", "/media/hugo/T7/market_data_bin/cryptolake/order_book");
+    databases.put("okx", "/media/hugo/T7/market_data_bin/cryptolake/order_book");
     root.add_child("databases", databases);
 
     boost::property_tree::write_json(config_path.string(), root);

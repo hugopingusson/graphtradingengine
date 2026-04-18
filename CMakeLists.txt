@@ -3,12 +3,12 @@ project(GraphTradingEngine LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Pour le warning CMP0167 (FindBoost), on force l'ancien comportement
+# Keep legacy FindBoost behavior for CMP0167
 if(POLICY CMP0167)
     cmake_policy(SET CMP0167 OLD)
 endif()
 
-# Dépendances
+# Dependencies
 find_package(Boost 1.71 REQUIRED COMPONENTS system filesystem thread date_time log)
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -19,7 +19,7 @@ set(Parquet_DIR "/usr/lib/x86_64-linux-gnu/cmake/Parquet" CACHE PATH "Parquet co
 find_package(Arrow REQUIRED CONFIG)
 find_package(Parquet REQUIRED CONFIG)
 
-# ---- SOURCES : supprime tout ce qui touche à Parquet ----
+# ---- SOURCES: include only files needed by the current executable ----
 add_executable(GraphTradingEngine
         main.cpp
         Helper/FutureHelper.cpp
@@ -47,7 +47,7 @@ add_executable(GraphTradingEngine
         Data/DataReader/CMEParquetToBin.cpp
         Data/DataReader/CryptolakeParquetToBin.cpp
 
-        # ⚠️ Ajoute ici les .cpp réellement utilisés par main :
+        # Add here the .cpp files effectively used by main:
         # Core/Node/OrderBook/MarketOrderBook.cpp
         # Core/Node/Trades/MarketTrade.cpp
         # Core/Node/Signals/Mid.cpp
@@ -57,10 +57,10 @@ add_executable(GraphTradingEngine
 
 target_include_directories(GraphTradingEngine PRIVATE ${Boost_INCLUDE_DIRS})
 
-# fmt en header-only (évite le lien binaire et les erreurs fmt::v6)
+# Use fmt in header-only mode to avoid binary-link issues and fmt::v6 mismatches
 target_compile_definitions(GraphTradingEngine PRIVATE FMT_HEADER_ONLY)
 
-# Lien (sans Parquet)
+# Link libraries
 target_link_libraries(GraphTradingEngine PRIVATE
         ${Boost_FILESYSTEM_LIBRARY}
         ${Boost_SYSTEM_LIBRARY}
@@ -72,7 +72,7 @@ target_link_libraries(GraphTradingEngine PRIVATE
         Threads::Threads
 )
 
-# Lier Arrow/Parquet seulement si trouvés
+# Link Arrow/Parquet only when targets are available
 if (TARGET Arrow::arrow)
     target_link_libraries(GraphTradingEngine PRIVATE Arrow::arrow)
 elseif (DEFINED ARROW_SHARED_LIB)
@@ -90,4 +90,42 @@ if (MSVC)
     target_compile_options(GraphTradingEngine PRIVATE /W4)
 else()
     target_compile_options(GraphTradingEngine PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# Standalone full-history converter executable (Databento + Cryptolake)
+add_executable(MarketDataConverter
+        tools/ConvertAllMarketData.cpp
+        Data/DataReader/CMEParquetToBin.cpp
+        Data/DataReader/CryptolakeParquetToBin.cpp
+        Helper/FutureHelper.cpp
+)
+
+target_include_directories(MarketDataConverter PRIVATE ${Boost_INCLUDE_DIRS})
+target_compile_definitions(MarketDataConverter PRIVATE FMT_HEADER_ONLY=1)
+
+target_link_libraries(MarketDataConverter PRIVATE
+        ${Boost_FILESYSTEM_LIBRARY}
+        ${Boost_SYSTEM_LIBRARY}
+        ${Boost_DATE_TIME_LIBRARY}
+        OpenSSL::SSL
+        OpenSSL::Crypto
+        Threads::Threads
+)
+
+if (TARGET Arrow::arrow)
+    target_link_libraries(MarketDataConverter PRIVATE Arrow::arrow)
+elseif (DEFINED ARROW_SHARED_LIB)
+    target_link_libraries(MarketDataConverter PRIVATE ${ARROW_SHARED_LIB})
+endif()
+
+if (TARGET Parquet::parquet)
+    target_link_libraries(MarketDataConverter PRIVATE Parquet::parquet)
+elseif (DEFINED PARQUET_SHARED_LIB)
+    target_link_libraries(MarketDataConverter PRIVATE ${PARQUET_SHARED_LIB})
+endif()
+
+if (MSVC)
+    target_compile_options(MarketDataConverter PRIVATE /W4)
+else()
+    target_compile_options(MarketDataConverter PRIVATE -Wall -Wextra -Wpedantic)
 endif()
