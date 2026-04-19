@@ -44,6 +44,9 @@ void BacktestEngine::initialize() {
     this->logger->log_info("BacktestEngine","Building streamers");
     this->build_streamer_container();
 
+    if (this->logger) {
+        this->logger->flush();
+    }
 
 }
 
@@ -90,8 +93,6 @@ void BacktestEngine::run(const Timestamp& start, const Timestamp& end){
 
     cout<<"BacktestEngine end"<<endl;
 }
-
-
 
 
 

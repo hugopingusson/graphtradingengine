@@ -12,7 +12,7 @@
 #include "../../Data/DataStructure/DataStructure.h"
 
 // Forward declaration to allow double-dispatch without circular include
-class MarketOrderBook;
+class Market;
 
 using namespace std;
 
@@ -33,7 +33,7 @@ class Event {
     [[nodiscard]] int get_source_id_trigger() const;
 
     // Double dispatch entry point
-    virtual void dispatchTo(MarketOrderBook& target) = 0;
+    virtual void dispatchTo(Market& target) = 0;
 
 
     protected:
@@ -57,7 +57,7 @@ class HeartBeatEvent : public Event {
 
     double get_frequency() const;
 
-    void dispatchTo(MarketOrderBook& target) override;
+    void dispatchTo(Market& target) override;
 
     protected:
     double frequency;
@@ -78,11 +78,10 @@ class MarketEvent : public Event {
     [[nodiscard]] const string& get_instrument() const;
     [[nodiscard]] virtual MarketTimeStamp get_last_market_timestamp() const = 0;
 
-    void dispatchTo(MarketOrderBook& target) override;
+    void dispatchTo(Market& target) override;
 
 
     protected:
-
     string instrument;
 
 };
@@ -105,7 +104,7 @@ class MarketByPriceEvent : public MarketEvent {
     [[nodiscard]] Order get_order() const;
     [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const override;
 
-    void dispatchTo(MarketOrderBook& target) override;
+    void dispatchTo(Market& target) override;
 
     protected:
     MarketByPriceMessage message;
@@ -127,7 +126,7 @@ class SnapshotEvent : public MarketEvent {
     [[nodiscard]] SnapshotData get_snapshot_data() const;
     [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const override;
 
-    void dispatchTo(MarketOrderBook& target) override;
+    void dispatchTo(Market& target) override;
 
     protected:
     SnapshotMessage mbp_message;
@@ -149,7 +148,7 @@ public:
     [[nodiscard]] Order get_order() const;
     [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const override;
 
-    void dispatchTo(MarketOrderBook& target) override;
+    void dispatchTo(Market& target) override;
 
 protected:
     OrderMessage mbo_message;
@@ -172,11 +171,32 @@ public:
     [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const override;
 
 
-    void dispatchTo(MarketOrderBook& target) override;
+    void dispatchTo(Market& target) override;
 
 protected:
     UpdateMessage update_message;
 
+};
+
+class UpdateBatchEvent : public MarketEvent {
+public:
+    UpdateBatchEvent();
+    ~UpdateBatchEvent() override = default;
+    UpdateBatchEvent(const string& instrument,
+                     const int64_t& reception_timestamp,
+                     const int& source_id_trigger,
+                     const vector<UpdateMessage>& update_messages,
+                     const Location& location = Location::UNKNOWN,
+                     const Listener& listener = Listener::UNKNOWN);
+
+    [[nodiscard]] const vector<UpdateMessage>& get_messages() const;
+    [[nodiscard]] size_t get_batch_size() const;
+    [[nodiscard]] MarketTimeStamp get_last_market_timestamp() const override;
+
+    void dispatchTo(Market& target) override;
+
+protected:
+    vector<UpdateMessage> update_messages;
 };
 
 

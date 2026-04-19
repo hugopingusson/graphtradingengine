@@ -17,6 +17,10 @@
 using namespace std;
 using namespace boost::filesystem;
 
+enum class LoggerMode {
+    DEBUG,
+    LIVE
+};
 
 
 class Logger {
@@ -24,12 +28,15 @@ class Logger {
     Logger();
     ~Logger();
     Logger(const string& logger_name,const string& log_location);
+    Logger(const string& logger_name,const string& log_location,LoggerMode mode);
     Logger(const string& logger_name,const string& log_location,const string& log_folder);
+    Logger(const string& logger_name,const string& log_location,const string& log_folder,LoggerMode mode);
 
 
     void log_info(const string& component,const string& msg);
     void log_error(const string& component,const string& msg);
     void log_warn(const string& component,const string& msg);
+    void flush();
 
     void throw_error(const string& component,const string& msg);
 
@@ -38,6 +45,7 @@ class Logger {
     string log_location;
     string log_folder;
     string logger_name;
+    LoggerMode mode;
     // std::shared_ptr<spdlog::logger> spdlogger;
     std::shared_ptr<spdlog::logger> spdlogger;
 

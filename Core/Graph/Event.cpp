@@ -71,27 +71,31 @@ const string& MarketEvent::get_instrument() const {
 }
 
 // Double-dispatch implementations
-void HeartBeatEvent::dispatchTo(MarketOrderBook& target) {
+void HeartBeatEvent::dispatchTo(Market& target) {
     target.handle(*this);
 }
 
-void MarketEvent::dispatchTo(MarketOrderBook& target) {
+void MarketEvent::dispatchTo(Market& target) {
     target.handle(*this);
 }
 
-void MarketByPriceEvent::dispatchTo(MarketOrderBook& target) {
+void MarketByPriceEvent::dispatchTo(Market& target) {
     target.handle(*this);
 }
 
-void SnapshotEvent::dispatchTo(MarketOrderBook& target) {
+void SnapshotEvent::dispatchTo(Market& target) {
     target.handle(*this);
 }
 
-void OrderEvent::dispatchTo(MarketOrderBook& target) {
+void OrderEvent::dispatchTo(Market& target) {
     target.handle(*this);
 }
 
-void UpdateEvent::dispatchTo(MarketOrderBook& target) {
+void UpdateEvent::dispatchTo(Market& target) {
+    target.handle(*this);
+}
+
+void UpdateBatchEvent::dispatchTo(Market& target) {
     target.handle(*this);
 }
 
@@ -186,6 +190,31 @@ Update UpdateEvent::get_update() const {
 
 MarketTimeStamp UpdateEvent::get_last_market_timestamp() const {
     return this->update_message.market_time_stamp;
+}
+
+UpdateBatchEvent::UpdateBatchEvent():MarketEvent(),update_messages() {}
+UpdateBatchEvent::UpdateBatchEvent(const string& instrument,
+                                   const int64_t& reception_timestamp,
+                                   const int& source_id_trigger,
+                                   const vector<UpdateMessage>& update_messages,
+                                   const Location& location,
+                                   const Listener& listener)
+    : MarketEvent(instrument,reception_timestamp,source_id_trigger,location,listener),
+      update_messages(update_messages) {}
+
+const vector<UpdateMessage>& UpdateBatchEvent::get_messages() const {
+    return this->update_messages;
+}
+
+size_t UpdateBatchEvent::get_batch_size() const {
+    return this->update_messages.size();
+}
+
+MarketTimeStamp UpdateBatchEvent::get_last_market_timestamp() const {
+    if (this->update_messages.empty()) {
+        return MarketTimeStamp{};
+    }
+    return this->update_messages.back().market_time_stamp;
 }
 
 

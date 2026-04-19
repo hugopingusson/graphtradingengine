@@ -7,9 +7,9 @@
 
 int main(int argc, char** argv) {
     std::string databento_parquet_root = "/media/hugo/T7/market_data/databento/mbp10";
-    std::string databento_bin_root = "/media/hugo/T7/market_data_bin/databento/mbp10";
+    std::string databento_bin_root = "/media/hugo/T7/market_data_bin";
     std::string cryptolake_parquet_root = "/media/hugo/T7/market_data/cryptolake/order_book";
-    std::string cryptolake_bin_root = "/media/hugo/T7/market_data_bin/cryptolake/order_book";
+    std::string cryptolake_bin_root = "/media/hugo/T7/market_data_bin";
 
     if (argc == 5) {
         databento_parquet_root = argv[1];

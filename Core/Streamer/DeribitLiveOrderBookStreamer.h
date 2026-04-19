@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 #include <nlohmann/json.hpp>
 
@@ -14,7 +15,9 @@
 
 class DeribitLiveOrderBookStreamer : public LiveUpdateDeltaOrderBookStreamer {
 public:
-    explicit DeribitLiveOrderBookStreamer(const std::string& instrument, size_t ring_capacity = 1u << 16);
+    explicit DeribitLiveOrderBookStreamer(const std::string& instrument,
+                                          size_t ring_capacity = 1u << 16,
+                                          size_t max_update_batch_size = 64);
     ~DeribitLiveOrderBookStreamer() override = default;
 
 protected:
@@ -29,7 +32,7 @@ private:
 
     bool connect_and_stream();
     std::string subscription_payload() const;
-    bool handle_raw_message(const std::string& raw_message);
+    bool handle_raw_message(std::string_view raw_message);
     bool handle_subscription_data(const nlohmann::json& data_message);
 
     bool handle_snapshot(const std::vector<ParsedLevel>& bids, const std::vector<ParsedLevel>& asks, const int64_t& exchange_ts);

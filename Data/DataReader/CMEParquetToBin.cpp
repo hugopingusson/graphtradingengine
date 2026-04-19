@@ -60,8 +60,8 @@ shared_ptr<ArrayT> get_array_by_name(const shared_ptr<arrow::Table>& table, cons
     );
 }
 
-vector<string> build_required_column_names() {
-    vector<string> columns = {
+vector<string> build_base_column_names() {
+    return {
         "ts_event",
         "ts_recv",
         "ts_in_delta",
@@ -71,15 +71,6 @@ vector<string> build_required_column_names() {
         "price",
         "size"
     };
-
-    columns.reserve(8 + 4 * kBookLevels);
-    for (size_t level = 0; level < kBookLevels; ++level) {
-        columns.push_back(fmt::format("bid_px_{:02d}", static_cast<int>(level)));
-        columns.push_back(fmt::format("ask_px_{:02d}", static_cast<int>(level)));
-        columns.push_back(fmt::format("bid_sz_{:02d}", static_cast<int>(level)));
-        columns.push_back(fmt::format("ask_sz_{:02d}", static_cast<int>(level)));
-    }
-    return columns;
 }
 
 bool is_date_yyyy_mm_dd(const string& value) {
@@ -136,7 +127,7 @@ string extract_instrument_from_parquet_path(const path& parquet_path) {
 
 CMEParquetToBin::CMEParquetToBin()
     : parquet_root("/media/hugo/T7/market_data/databento/mbp10"),
-      bin_root("/media/hugo/T7/market_data_bin/databento/mbp10") {}
+      bin_root("/media/hugo/T7/market_data_bin") {}
 
 CMEParquetToBin::CMEParquetToBin(string parquet_root, string bin_root)
     : parquet_root(std::move(parquet_root)), bin_root(std::move(bin_root)) {}
@@ -160,7 +151,11 @@ void CMEParquetToBin::convert_all_to_bin() const {
 
         const string date = extract_date_from_parquet_filename(it->path());
         const string instrument = extract_instrument_from_parquet_path(it->path());
-        const path out_path = output_root / path("cme") / path(instrument) / path(fmt::format("{}.bin", date));
+        const path out_path = output_root
+            / path("chi")
+            / path("databento")
+            / path(instrument)
+            / path(fmt::format("{}.bin", date));
 
         this->convert_file_to_bin(it->path().string(), out_path.string());
     }
@@ -174,7 +169,8 @@ void CMEParquetToBin::convert_to_bin(const string& instrument, const string& dat
         / path(contract)
         / path(fmt::format("databento_order_book_mbp10_cme_{}_{}.parquet", contract, date));
     const path bin_path = path(this->bin_root)
-        / path("cme")
+        / path("chi")
+        / path("databento")
         / path(contract)
         / path(fmt::format("{}.bin", date));
 
@@ -220,9 +216,9 @@ void CMEParquetToBin::convert_file_to_bin(const string& parquet_file_path, const
     shared_ptr<arrow::Schema> schema;
     throw_if_status_not_ok(reader->GetSchema(&schema), "Cannot read parquet schema");
 
-    const vector<string> required_columns = build_required_column_names();
+    const vector<string> required_columns = build_base_column_names();
     vector<int> column_indices;
-    column_indices.reserve(required_columns.size());
+    column_indices.reserve(required_columns.size() + 4 * kBookLevels);
     for (const auto& column_name : required_columns) {
         const int idx = schema->GetFieldIndex(column_name);
         if (idx < 0) {
@@ -241,6 +237,22 @@ void CMEParquetToBin::convert_file_to_bin(const string& parquet_file_path, const
         ask_px_columns[level] = fmt::format("ask_px_{:02d}", static_cast<int>(level));
         bid_sz_columns[level] = fmt::format("bid_sz_{:02d}", static_cast<int>(level));
         ask_sz_columns[level] = fmt::format("ask_sz_{:02d}", static_cast<int>(level));
+    }
+
+    size_t source_levels = 0;
+    for (size_t level = 0; level < kBookLevels; ++level) {
+        const int bid_px_idx = schema->GetFieldIndex(bid_px_columns[level]);
+        const int ask_px_idx = schema->GetFieldIndex(ask_px_columns[level]);
+        const int bid_sz_idx = schema->GetFieldIndex(bid_sz_columns[level]);
+        const int ask_sz_idx = schema->GetFieldIndex(ask_sz_columns[level]);
+        if (bid_px_idx < 0 || ask_px_idx < 0 || bid_sz_idx < 0 || ask_sz_idx < 0) {
+            break;
+        }
+        source_levels = level + 1;
+        column_indices.push_back(bid_px_idx);
+        column_indices.push_back(ask_px_idx);
+        column_indices.push_back(bid_sz_idx);
+        column_indices.push_back(ask_sz_idx);
     }
 
     for (int rg = 0; rg < row_group_count; ++rg) {
@@ -268,7 +280,7 @@ void CMEParquetToBin::convert_file_to_bin(const string& parquet_file_path, const
         array<shared_ptr<arrow::UInt32Array>, kBookLevels> bid_sz_arr{};
         array<shared_ptr<arrow::UInt32Array>, kBookLevels> ask_sz_arr{};
 
-        for (size_t level = 0; level < kBookLevels; ++level) {
+        for (size_t level = 0; level < source_levels; ++level) {
             bid_px_arr[level] = get_array_by_name<arrow::DoubleArray>(table, bid_px_columns[level]);
             ask_px_arr[level] = get_array_by_name<arrow::DoubleArray>(table, ask_px_columns[level]);
             bid_sz_arr[level] = get_array_by_name<arrow::UInt32Array>(table, bid_sz_columns[level]);
@@ -325,10 +337,28 @@ void CMEParquetToBin::convert_file_to_bin(const string& parquet_file_path, const
             row.message.order.size = static_cast<double>(size_arr->Value(i));
 
             for (size_t level = 0; level < kBookLevels; ++level) {
-                row.message.order_book_snapshot_data.bid_price[level] = bid_px_arr[level]->Value(i);
-                row.message.order_book_snapshot_data.ask_price[level] = ask_px_arr[level]->Value(i);
-                row.message.order_book_snapshot_data.bid_size[level] = static_cast<double>(bid_sz_arr[level]->Value(i));
-                row.message.order_book_snapshot_data.ask_size[level] = static_cast<double>(ask_sz_arr[level]->Value(i));
+                double bid_px = 0.0;
+                double ask_px = 0.0;
+                double bid_sz = 0.0;
+                double ask_sz = 0.0;
+                if (level < source_levels) {
+                    if (!bid_px_arr[level]->IsNull(i)) {
+                        bid_px = bid_px_arr[level]->Value(i);
+                    }
+                    if (!ask_px_arr[level]->IsNull(i)) {
+                        ask_px = ask_px_arr[level]->Value(i);
+                    }
+                    if (!bid_sz_arr[level]->IsNull(i)) {
+                        bid_sz = static_cast<double>(bid_sz_arr[level]->Value(i));
+                    }
+                    if (!ask_sz_arr[level]->IsNull(i)) {
+                        ask_sz = static_cast<double>(ask_sz_arr[level]->Value(i));
+                    }
+                }
+                row.message.order_book_snapshot_data.bid_price[level] = bid_px;
+                row.message.order_book_snapshot_data.ask_price[level] = ask_px;
+                row.message.order_book_snapshot_data.bid_size[level] = bid_sz;
+                row.message.order_book_snapshot_data.ask_size[level] = ask_sz;
                 row.message.order_book_snapshot_data.bid_count[level] = 0;
                 row.message.order_book_snapshot_data.ask_count[level] = 0;
             }

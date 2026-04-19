@@ -15,6 +15,7 @@
 
 #include <fmt/format.h>
 
+#include "../../Helper/SaphirManager.h"
 #include "../Streamer/BitmexLiveOrderBookStreamer.h"
 #include "../Streamer/BinanceLiveOrderBookStreamer.h"
 #include "../Streamer/DeribitLiveOrderBookStreamer.h"
@@ -79,8 +80,8 @@ void LiveEngine::register_source(Producer* source_node) {
         ));
     }
 
-    if (auto* market_order_book = dynamic_cast<MarketOrderBook*>(source_node)) {
-        this->register_market_orderbook_source(market_order_book);
+    if (auto* market = dynamic_cast<Market*>(source_node)) {
+        this->register_market_source(market);
         return;
     }
 
@@ -90,9 +91,9 @@ void LiveEngine::register_source(Producer* source_node) {
     ));
 }
 
-void LiveEngine::register_market_orderbook_source(MarketOrderBook* market) {
+void LiveEngine::register_market_source(Market* market) {
     if (!market) {
-        throw std::runtime_error("LiveEngine::register_market_orderbook_source received null market");
+        throw std::runtime_error("LiveEngine::register_market_source received null market");
     }
 
     for (auto& kv : this->streamers) {
@@ -125,26 +126,51 @@ void LiveEngine::register_market_orderbook_source(MarketOrderBook* market) {
         return static_cast<char>(std::tolower(c));
     });
 
+    size_t ring_capacity = 1u << 16;
+    size_t max_update_batch_size = 64;
+    try {
+        const SaphirManager saphir;
+        ring_capacity = saphir.get_ring_capacity();
+        max_update_batch_size = saphir.get_max_update_batch_size();
+    } catch (const std::exception&) {
+    }
+
     std::unique_ptr<LiveStreamer> new_streamer;
     if (exchange == "bitmex") {
-        auto bitmex_streamer = std::make_unique<BitmexLiveOrderBookStreamer>(market->get_instrument());
+        auto bitmex_streamer = std::make_unique<BitmexLiveOrderBookStreamer>(
+            market->get_instrument(),
+            ring_capacity,
+            max_update_batch_size
+        );
         bitmex_streamer->set_order_book_source_node_id(market->get_node_id());
         new_streamer = std::move(bitmex_streamer);
     } else if (exchange == "binance") {
-        auto binance_streamer = std::make_unique<BinanceLiveOrderBookStreamer>(market->get_instrument());
+        auto binance_streamer = std::make_unique<BinanceLiveOrderBookStreamer>(
+            market->get_instrument(),
+            ring_capacity,
+            max_update_batch_size
+        );
         binance_streamer->set_order_book_source_node_id(market->get_node_id());
         new_streamer = std::move(binance_streamer);
     } else if (exchange == "deribit") {
-        auto deribit_streamer = std::make_unique<DeribitLiveOrderBookStreamer>(market->get_instrument());
+        auto deribit_streamer = std::make_unique<DeribitLiveOrderBookStreamer>(
+            market->get_instrument(),
+            ring_capacity,
+            max_update_batch_size
+        );
         deribit_streamer->set_order_book_source_node_id(market->get_node_id());
         new_streamer = std::move(deribit_streamer);
     } else if (exchange == "okx") {
-        auto okx_streamer = std::make_unique<OkxLiveOrderBookStreamer>(market->get_instrument());
+        auto okx_streamer = std::make_unique<OkxLiveOrderBookStreamer>(
+            market->get_instrument(),
+            ring_capacity,
+            max_update_batch_size
+        );
         okx_streamer->set_order_book_source_node_id(market->get_node_id());
         new_streamer = std::move(okx_streamer);
     } else {
         throw std::runtime_error(fmt::format(
-            "LiveEngine::register_market_orderbook_source unsupported exchange '{}' for instrument '{}'",
+            "LiveEngine::register_market_source unsupported exchange '{}' for instrument '{}'",
             market->get_exchange(),
             market->get_instrument()
         ));
@@ -195,6 +221,9 @@ void LiveEngine::initialize() {
         this->logger->log_info("LiveEngine", "Building live streamers");
     }
     this->build_streamer_container();
+    if (this->logger) {
+        this->logger->flush();
+    }
 }
 
 void LiveEngine::run() {

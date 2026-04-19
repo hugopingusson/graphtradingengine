@@ -8,9 +8,11 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <thread>
 
+#include <boost/asio/buffer.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl.hpp>
@@ -28,13 +30,16 @@ namespace websocket = beast::websocket;
 using Json = nlohmann::json;
 }
 
-DeribitLiveOrderBookStreamer::DeribitLiveOrderBookStreamer(const std::string& instrument, size_t ring_capacity)
+DeribitLiveOrderBookStreamer::DeribitLiveOrderBookStreamer(const std::string& instrument,
+                                                           size_t ring_capacity,
+                                                           size_t max_update_batch_size)
     : MarketStreamer(instrument, "deribit"),
       LiveUpdateDeltaOrderBookStreamer(
           fmt::format("DeribitLiveOrderBookStreamer(instrument={})", instrument),
           instrument,
           "deribit",
-          ring_capacity
+          ring_capacity,
+          max_update_batch_size
       ),
       websocket_host("www.deribit.com"),
       websocket_port("443"),
@@ -48,7 +53,7 @@ void DeribitLiveOrderBookStreamer::run_loop() {
         this->ask_ladder.clear();
         this->reset_bootstrap();
         this->connect_and_stream();
-        if (!this->is_stop_requested()) {
+        if (!this->is_stop_requested() && !this->is_desynced()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }
     }
@@ -81,11 +86,22 @@ bool DeribitLiveOrderBookStreamer::connect_and_stream() {
         const std::string subscribe = this->subscription_payload();
         ws.write(boost::asio::buffer(subscribe));
 
+        beast::flat_buffer buffer;
         while (!this->is_stop_requested()) {
-            beast::flat_buffer buffer;
+            if (this->consume_reconnect_request()) {
+                break;
+            }
+            buffer.consume(buffer.size());
             ws.read(buffer);
-            const std::string raw_message = beast::buffers_to_string(buffer.cdata());
-            this->handle_raw_message(raw_message);
+            const auto data = buffer.cdata();
+            if (data.size() > 0) {
+                const auto* raw_ptr = static_cast<const char*>(data.data());
+                const std::string_view raw_message(raw_ptr, data.size());
+                this->handle_raw_message(raw_message);
+            }
+            if (this->consume_reconnect_request()) {
+                break;
+            }
         }
 
         boost::system::error_code close_ec;
@@ -104,8 +120,8 @@ std::string DeribitLiveOrderBookStreamer::subscription_payload() const {
     );
 }
 
-bool DeribitLiveOrderBookStreamer::handle_raw_message(const std::string& raw_message) {
-    Json message = Json::parse(raw_message, nullptr, false);
+bool DeribitLiveOrderBookStreamer::handle_raw_message(std::string_view raw_message) {
+    Json message = Json::parse(raw_message.begin(), raw_message.end(), nullptr, false);
     if (message.is_discarded() || !message.is_object()) {
         return false;
     }

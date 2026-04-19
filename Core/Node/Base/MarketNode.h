@@ -19,33 +19,14 @@ using namespace fmt;
 
 
 class Market:public virtual Producer {
-// class Market:public virtual SourceNode<Market> {
-
-public:
-    virtual ~Market() = default;
+    public:
     Market();
-    Market(const string& instrument,const string& exchange); // No only default
-
+    ~Market() override = default;
+    Market(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
+    // Market(const string& instrument,const string& exchange,const int& depth,const double& tick_value,HeartBeat* heart_beat_node);
 
     string get_instrument();
     string get_exchange();
-
-protected:
-    string instrument;
-    string exchange;
-
-
-};
-
-
-
-
-class MarketOrderBook:public Market  {
-    public:
-    MarketOrderBook();
-    ~MarketOrderBook() override = default;
-    MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
-    // MarketOrderBook(const string& instrument,const string& exchange,const int& depth,const double& tick_value,HeartBeat* heart_beat_node);
 
     const AskLadder& get_ask_ladder() const;
     const BidLadder& get_bid_ladder() const;
@@ -73,6 +54,7 @@ class MarketOrderBook:public Market  {
     void handle(SnapshotEvent& event);
     void handle(OrderEvent& event);
     void handle(UpdateEvent& event);
+    void handle(UpdateBatchEvent& event);
     void handle(HeartBeatEvent& event);
 
     double ask_price(const std::size_t& i) const;
@@ -102,6 +84,9 @@ class MarketOrderBook:public Market  {
 
 
     protected:
+    void trim_to_depth();
+    string instrument;
+    string exchange;
     AskLadder ask_ladder;
     BidLadder bid_ladder;
     int depth;

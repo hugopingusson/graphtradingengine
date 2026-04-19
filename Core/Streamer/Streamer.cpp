@@ -42,13 +42,13 @@ void BacktestStreamer::set_id(const size_t& id) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer()
+MarketByPriceBacktestStreamer::MarketByPriceBacktestStreamer()
     : file(),
       current_reception_timestamp(),
       current_location(Location::UNKNOWN),
       current_listener(Listener::UNKNOWN),
       current_message() {}
-DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer(const string& instrument, const string& exchange)
+MarketByPriceBacktestStreamer::MarketByPriceBacktestStreamer(const string& instrument, const string& exchange)
     : MarketStreamer(instrument,exchange),
       BacktestStreamer(),
       file(),
@@ -57,7 +57,7 @@ DatabaseWMBPBacktestStreamer::DatabaseWMBPBacktestStreamer(const string& instrum
       current_listener(Listener::UNKNOWN),
       current_message() {}
 
-void DatabaseWMBPBacktestStreamer::set_and_route(const Timestamp& start, const Timestamp& /*end*/) {
+void MarketByPriceBacktestStreamer::set_and_route(const Timestamp& start, const Timestamp& /*end*/) {
 
     DataBaseHelper databe_base_helper = DataBaseHelper();
 
@@ -74,6 +74,36 @@ void DatabaseWMBPBacktestStreamer::set_and_route(const Timestamp& start, const T
     if (!this->file.is_open()) {
         throw std::runtime_error(fmt::format("Error when routing streamer {}, cannot open bin file {}", this->get_name(), data_path));
     }
+
+    {
+        std::error_code file_size_ec;
+        const uintmax_t bytes = filesystem::file_size(data_path, file_size_ec);
+        if (!file_size_ec) {
+            constexpr uintmax_t kCurrentRecordSize = static_cast<uintmax_t>(sizeof(MarketByPriceEventPod));
+            constexpr uintmax_t kLegacyRecordSize10 = 454; // legacy 10-level MBP pod
+            if (bytes > 0 && (bytes % kCurrentRecordSize) != 0) {
+                if ((bytes % kLegacyRecordSize10) == 0) {
+                    throw std::runtime_error(fmt::format(
+                        "Error when routing streamer {}: {} looks like legacy 10-level format (record size {}). "
+                        "Current engine expects {} bytes per record (kBookLevels={}). Re-run parquet->bin conversion.",
+                        this->get_name(),
+                        data_path,
+                        kLegacyRecordSize10,
+                        kCurrentRecordSize,
+                        kBookLevels
+                    ));
+                }
+                throw std::runtime_error(fmt::format(
+                    "Error when routing streamer {}: invalid bin size {} for {} (expected multiple of record size {}).",
+                    this->get_name(),
+                    bytes,
+                    data_path,
+                    kCurrentRecordSize
+                ));
+            }
+        }
+    }
+
     int64_t start_ts = start.unixtime();
     if (!this->advance()) {
         return;
@@ -89,11 +119,11 @@ void DatabaseWMBPBacktestStreamer::set_and_route(const Timestamp& start, const T
 
 
 
-string DatabaseWMBPBacktestStreamer::get_name() {
-    return fmt::format("DatabaseWMBPBacktestStreamer(instrument={},exchange={})",this->instrument,this->exchange);
+string MarketByPriceBacktestStreamer::get_name() {
+    return fmt::format("MarketByPriceBacktestStreamer(instrument={},exchange={})",this->instrument,this->exchange);
 }
 
-bool DatabaseWMBPBacktestStreamer::advance() {
+bool MarketByPriceBacktestStreamer::advance() {
     MarketByPriceEventPod row;
     file.read(reinterpret_cast<char*>(&row), sizeof(MarketByPriceEventPod));
     if (file.gcount() != sizeof(MarketByPriceEventPod)) {
@@ -107,15 +137,15 @@ bool DatabaseWMBPBacktestStreamer::advance() {
     return true;
 }
 
-HeapItem DatabaseWMBPBacktestStreamer::get_current_heap_item() {
+HeapItem MarketByPriceBacktestStreamer::get_current_heap_item() {
     return {this->current_reception_timestamp,this->id};
 }
 
-bool DatabaseWMBPBacktestStreamer::is_good() const {
+bool MarketByPriceBacktestStreamer::is_good() const {
     return this->file.is_open() && this->file.good();
 }
 
-void DatabaseWMBPBacktestStreamer::process_current(Graph* graph) {
+void MarketByPriceBacktestStreamer::process_current(Graph* graph) {
     MarketByPriceEvent event(
         this->instrument,
         this->current_reception_timestamp,
@@ -129,7 +159,7 @@ void DatabaseWMBPBacktestStreamer::process_current(Graph* graph) {
     graph->update(this->order_book_source_node_id);
 }
 
-MarketByPriceMessage DatabaseWMBPBacktestStreamer::get_current_message() const {
+MarketByPriceMessage MarketByPriceBacktestStreamer::get_current_message() const {
     return this->current_message;
 }
 
@@ -230,8 +260,8 @@ void BackTestStreamerContainer::register_source(Producer* source_node) {
         throw std::runtime_error(fmt::format("Error in register_source,cannot register source node = {}, the node is not attached to a graph",source_node->get_name()));
     }
 
-    if (auto* market_order_book = dynamic_cast<MarketOrderBook*>(source_node)) {
-        this->register_market_orderbook_source(market_order_book);
+    if (auto* market = dynamic_cast<Market*>(source_node)) {
+        this->register_market_source(market);
         return;
     }
 
@@ -257,7 +287,7 @@ void BackTestStreamerContainer::register_heartbeat_source(HeartBeat* heart_beat)
     this->streamers[max_id]=new_streamer;
 }
 
-void BackTestStreamerContainer::register_market_orderbook_source(MarketOrderBook* market) {
+void BackTestStreamerContainer::register_market_source(Market* market) {
     for (auto& streamer : streamers) {
         auto* market_streamer = dynamic_cast<MarketStreamer*>(streamer.second);
         if (!market_streamer) {
@@ -273,7 +303,7 @@ void BackTestStreamerContainer::register_market_orderbook_source(MarketOrderBook
         }
     }
 
-    auto* new_streamer = new DatabaseWMBPBacktestStreamer(market->get_instrument(), market->get_exchange());
+    auto* new_streamer = new MarketByPriceBacktestStreamer(market->get_instrument(), market->get_exchange());
     if (this->logger) {
         this->logger->log_info("StreamerContainer",fmt::format("Creating new streamer : {}",new_streamer->get_name()));
         this->logger->log_info("StreamerContainer",fmt::format("Setting order book source id to {}: Pointing to {} order_book_source_node_id={}",new_streamer->get_name(),market->get_name(),std::to_string(market->get_node_id())));
@@ -291,8 +321,8 @@ void BackTestStreamerContainer::route_and_set_streamers(const Timestamp &start, 
     for (auto& streamer : this->streamers) {
 
         streamer.second->set_and_route(start,end);
-        // if (this->logger && typeid(streamer)==typeid(DatabaseWMBPBacktestStreamer)) {
-        //     this->logger->log_info("StreamerContainer", fmt::format("Routed streamer {} to {}", streamer.second->get_name(), dynamic_cast<DatabaseWMBPBacktestStreamer*>(streamer.second)->get_file().st));
+        // if (this->logger && typeid(streamer)==typeid(MarketByPriceBacktestStreamer)) {
+        //     this->logger->log_info("StreamerContainer", fmt::format("Routed streamer {} to {}", streamer.second->get_name(), dynamic_cast<MarketByPriceBacktestStreamer*>(streamer.second)->get_file().st));
         // }
     }
 }

@@ -140,16 +140,8 @@ int64_t parse_timestamp_to_ns(const string_view value) {
     return epoch_seconds * 1000000000LL + nanoseconds;
 }
 
-vector<string> build_required_column_names() {
-    vector<string> columns = {"exchange_time", "reception_time"};
-    columns.reserve(2 + 4 * kBookLevels);
-    for (size_t level = 0; level < kBookLevels; ++level) {
-        columns.push_back(fmt::format("bid_{}_price", level));
-        columns.push_back(fmt::format("bid_{}_size", level));
-        columns.push_back(fmt::format("ask_{}_price", level));
-        columns.push_back(fmt::format("ask_{}_size", level));
-    }
-    return columns;
+vector<string> build_base_column_names() {
+    return {"exchange_time", "reception_time"};
 }
 
 bool is_date_yyyy_mm_dd(const string& value) {
@@ -192,29 +184,6 @@ string extract_date_from_parquet_filename(const path& parquet_path) {
     return date;
 }
 
-string extract_exchange_from_parquet_filename(const path& parquet_path) {
-    const string stem = parquet_path.stem().string();
-    const string prefix = "cryptolake_order_book_snapshot_";
-    if (stem.rfind(prefix, 0) != 0) {
-        throw std::runtime_error(fmt::format(
-            "Unexpected Cryptolake parquet filename '{}'",
-            parquet_path.filename().string()
-        ));
-    }
-
-    const string remainder = stem.substr(prefix.size()); // exchange_symbol_date
-    const size_t first_underscore = remainder.find('_');
-    const size_t last_underscore = remainder.rfind('_');
-    if (first_underscore == string::npos || last_underscore == string::npos || first_underscore == last_underscore) {
-        throw std::runtime_error(fmt::format(
-            "Cannot extract exchange from parquet filename '{}'",
-            parquet_path.filename().string()
-        ));
-    }
-
-    return remainder.substr(0, first_underscore);
-}
-
 string extract_instrument_from_parquet_path(const path& parquet_path) {
     const path instrument_dir = parquet_path.parent_path().filename();
     if (instrument_dir.empty()) {
@@ -229,7 +198,7 @@ string extract_instrument_from_parquet_path(const path& parquet_path) {
 
 CryptolakeParquetToBin::CryptolakeParquetToBin()
     : parquet_root("/media/hugo/T7/market_data/cryptolake/order_book"),
-      bin_root("/media/hugo/T7/market_data_bin/cryptolake/order_book") {}
+      bin_root("/media/hugo/T7/market_data_bin") {}
 
 CryptolakeParquetToBin::CryptolakeParquetToBin(string parquet_root, string bin_root)
     : parquet_root(std::move(parquet_root)), bin_root(std::move(bin_root)) {}
@@ -252,9 +221,12 @@ void CryptolakeParquetToBin::convert_all_to_bin() const {
         }
 
         const string date = extract_date_from_parquet_filename(it->path());
-        const string exchange = extract_exchange_from_parquet_filename(it->path());
         const string instrument = extract_instrument_from_parquet_path(it->path());
-        const path out_path = output_root / path(exchange) / path(instrument) / path(fmt::format("{}.bin", date));
+        const path out_path = output_root
+            / path("nyk")
+            / path("cryptolake")
+            / path(instrument)
+            / path(fmt::format("{}.bin", date));
         this->convert_file_to_bin(it->path().string(), out_path.string());
     }
 }
@@ -264,7 +236,8 @@ void CryptolakeParquetToBin::convert_to_bin(const string& symbol, const string& 
         / path(symbol)
         / path(fmt::format("cryptolake_order_book_snapshot_{}_{}_{}.parquet", exchange, symbol, date));
     const path bin_path = path(this->bin_root)
-        / path(exchange)
+        / path("nyk")
+        / path("cryptolake")
         / path(symbol)
         / path(fmt::format("{}.bin", date));
 
@@ -310,9 +283,9 @@ void CryptolakeParquetToBin::convert_file_to_bin(const string& parquet_file_path
     shared_ptr<arrow::Schema> schema;
     throw_if_status_not_ok(reader->GetSchema(&schema), "Cannot read parquet schema");
 
-    const vector<string> required_columns = build_required_column_names();
+    const vector<string> required_columns = build_base_column_names();
     vector<int> column_indices;
-    column_indices.reserve(required_columns.size());
+    column_indices.reserve(required_columns.size() + 4 * kBookLevels);
     for (const auto& column_name : required_columns) {
         const int idx = schema->GetFieldIndex(column_name);
         if (idx < 0) {
@@ -330,6 +303,22 @@ void CryptolakeParquetToBin::convert_file_to_bin(const string& parquet_file_path
         bid_size_cols[level] = fmt::format("bid_{}_size", level);
         ask_price_cols[level] = fmt::format("ask_{}_price", level);
         ask_size_cols[level] = fmt::format("ask_{}_size", level);
+    }
+
+    size_t source_levels = 0;
+    for (size_t level = 0; level < kBookLevels; ++level) {
+        const int bid_px_idx = schema->GetFieldIndex(bid_price_cols[level]);
+        const int bid_sz_idx = schema->GetFieldIndex(bid_size_cols[level]);
+        const int ask_px_idx = schema->GetFieldIndex(ask_price_cols[level]);
+        const int ask_sz_idx = schema->GetFieldIndex(ask_size_cols[level]);
+        if (bid_px_idx < 0 || bid_sz_idx < 0 || ask_px_idx < 0 || ask_sz_idx < 0) {
+            break;
+        }
+        source_levels = level + 1;
+        column_indices.push_back(bid_px_idx);
+        column_indices.push_back(bid_sz_idx);
+        column_indices.push_back(ask_px_idx);
+        column_indices.push_back(ask_sz_idx);
     }
 
     const int row_group_count = reader->num_row_groups();
@@ -351,7 +340,7 @@ void CryptolakeParquetToBin::convert_file_to_bin(const string& parquet_file_path
         array<shared_ptr<arrow::DoubleArray>, kBookLevels> bid_size_arr{};
         array<shared_ptr<arrow::DoubleArray>, kBookLevels> ask_price_arr{};
         array<shared_ptr<arrow::DoubleArray>, kBookLevels> ask_size_arr{};
-        for (size_t level = 0; level < kBookLevels; ++level) {
+        for (size_t level = 0; level < source_levels; ++level) {
             bid_price_arr[level] = get_array_by_name<arrow::DoubleArray>(table, bid_price_cols[level]);
             bid_size_arr[level] = get_array_by_name<arrow::DoubleArray>(table, bid_size_cols[level]);
             ask_price_arr[level] = get_array_by_name<arrow::DoubleArray>(table, ask_price_cols[level]);
@@ -373,7 +362,7 @@ void CryptolakeParquetToBin::convert_file_to_bin(const string& parquet_file_path
             row.reception_timestamp =
                 parse_timestamp_to_ns(string_view(reception_time_view.data(), reception_time_view.size()));
             row.message.market_time_stamp.data_gateway_out_timestamp = row.reception_timestamp;
-            row.location = Location::UNKNOWN;
+            row.location = Location::NYK;
             row.listener = Listener::CRYPTOLAKE;
             row.message.order.side = Side::NEUTRAL;
             row.message.order.action = Action::ADD;
@@ -382,10 +371,28 @@ void CryptolakeParquetToBin::convert_file_to_bin(const string& parquet_file_path
             row.message.order.size = 0.0;
 
             for (size_t level = 0; level < kBookLevels; ++level) {
-                row.message.order_book_snapshot_data.bid_price[level] = bid_price_arr[level]->Value(i);
-                row.message.order_book_snapshot_data.bid_size[level] = bid_size_arr[level]->Value(i);
-                row.message.order_book_snapshot_data.ask_price[level] = ask_price_arr[level]->Value(i);
-                row.message.order_book_snapshot_data.ask_size[level] = ask_size_arr[level]->Value(i);
+                double bid_px = 0.0;
+                double bid_sz = 0.0;
+                double ask_px = 0.0;
+                double ask_sz = 0.0;
+                if (level < source_levels) {
+                    if (!bid_price_arr[level]->IsNull(i)) {
+                        bid_px = bid_price_arr[level]->Value(i);
+                    }
+                    if (!bid_size_arr[level]->IsNull(i)) {
+                        bid_sz = bid_size_arr[level]->Value(i);
+                    }
+                    if (!ask_price_arr[level]->IsNull(i)) {
+                        ask_px = ask_price_arr[level]->Value(i);
+                    }
+                    if (!ask_size_arr[level]->IsNull(i)) {
+                        ask_sz = ask_size_arr[level]->Value(i);
+                    }
+                }
+                row.message.order_book_snapshot_data.bid_price[level] = bid_px;
+                row.message.order_book_snapshot_data.bid_size[level] = bid_sz;
+                row.message.order_book_snapshot_data.ask_price[level] = ask_px;
+                row.message.order_book_snapshot_data.ask_size[level] = ask_sz;
                 row.message.order_book_snapshot_data.bid_count[level] = 0;
                 row.message.order_book_snapshot_data.ask_count[level] = 0;
             }

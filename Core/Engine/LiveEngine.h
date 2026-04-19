@@ -36,7 +36,7 @@ public:
 
 private:
     void register_source(Producer* source_node);
-    void register_market_orderbook_source(MarketOrderBook* market);
+    void register_market_source(Market* market);
 
     void run_consumer_loop();
     void process_event(LiveStreamer::EventPtr event);

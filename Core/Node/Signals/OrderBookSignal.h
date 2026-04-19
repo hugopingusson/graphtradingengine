@@ -12,12 +12,12 @@ class Mid:public SingleInputConsumer {
     public:
     Mid();
     ~Mid() override = default;
-    Mid(MarketOrderBook* market);
+    Mid(Market* market);
 
     void compute() override;
 
     protected:
-    MarketOrderBook* market;
+    Market* market;
 
 };
 
@@ -26,12 +26,12 @@ class Bary:public SingleInputConsumer {
     public:
     Bary();
     ~Bary() override = default;
-    Bary(MarketOrderBook* market);
+    Bary(Market* market);
 
     void compute() override;
 
     protected:
-    MarketOrderBook* market;
+    Market* market;
 
 };
 
@@ -41,7 +41,7 @@ class Vwap:public SingleInputConsumer {
     public:
     Vwap();
     ~Vwap() override = default;
-    Vwap(MarketOrderBook* market,double const& size);
+    Vwap(Market* market,double const& size);
 
     void compute() override;
 
@@ -49,7 +49,7 @@ class Vwap:public SingleInputConsumer {
     double get_bid_vwap() const;
 
     protected:
-    MarketOrderBook* market;
+    Market* market;
     double amount;
     double ask_vwap;
     double bid_vwap;
@@ -60,12 +60,12 @@ class TopOfBookImbalance : public SingleInputConsumer {
 public:
     TopOfBookImbalance();
     ~TopOfBookImbalance() override = default;
-    TopOfBookImbalance(MarketOrderBook* market);
+    TopOfBookImbalance(Market* market);
 
     void compute() override;
 
 protected:
-    MarketOrderBook* market;
+    Market* market;
 };
 
 

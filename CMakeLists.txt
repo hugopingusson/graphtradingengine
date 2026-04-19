@@ -44,8 +44,6 @@ add_executable(GraphTradingEngine
         Core/Engine/BacktestEngine.cpp
         Core/Engine/LiveEngine.cpp
         Helper/Configuration.h
-        Data/DataReader/CMEParquetToBin.cpp
-        Data/DataReader/CryptolakeParquetToBin.cpp
 
         # Add here the .cpp files effectively used by main:
         # Core/Node/OrderBook/MarketOrderBook.cpp

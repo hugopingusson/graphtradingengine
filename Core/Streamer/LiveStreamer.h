@@ -117,9 +117,15 @@ public:
 
     uint64_t get_pushed_events() const;
     uint64_t get_dropped_events() const;
+    bool is_desynced() const;
 
 protected:
     bool push_event(EventPtr event);
+    void request_reconnect();
+    bool consume_reconnect_request();
+    void mark_synced();
+    void mark_desynced();
+    virtual void on_ring_overflow();
     virtual void run_loop() = 0;
 
 private:
@@ -129,6 +135,8 @@ private:
     std::thread worker_;
     std::atomic<bool> running_;
     std::atomic<bool> stop_requested_;
+    std::atomic<bool> reconnect_requested_;
+    std::atomic<bool> desynced_;
     std::atomic<uint64_t> pushed_events_;
     std::atomic<uint64_t> dropped_events_;
 };
@@ -136,7 +144,11 @@ private:
 class LiveOrderBookStreamer : public LiveStreamer,
                               virtual public MarketStreamer {
 public:
-    LiveOrderBookStreamer(const std::string& name, const std::string& instrument, const std::string& exchange, size_t ring_capacity = 1u << 16);
+    LiveOrderBookStreamer(const std::string& name,
+                          const std::string& instrument,
+                          const std::string& exchange,
+                          size_t ring_capacity = 1u << 16,
+                          size_t max_update_batch_size = 64);
     ~LiveOrderBookStreamer() override = default;
 
 protected:
@@ -157,17 +169,33 @@ protected:
                            const UpdateMessage& message,
                            const Location& location = Location::UNKNOWN,
                            const Listener& listener = Listener::PRODUCTION);
+
+    bool emit_update_batch_event(const int64_t& reception_timestamp,
+                                 const int& source_id_trigger,
+                                 const std::vector<UpdateMessage>& messages,
+                                 const Location& location = Location::UNKNOWN,
+                                 const Listener& listener = Listener::PRODUCTION);
+
+    size_t get_max_update_batch_size() const;
+
+private:
+    size_t max_update_batch_size_;
 };
 
 class LiveBootstrappedOrderBookStreamer : public LiveOrderBookStreamer {
 public:
-    LiveBootstrappedOrderBookStreamer(const std::string& name, const std::string& instrument, const std::string& exchange, size_t ring_capacity = 1u << 16);
+    LiveBootstrappedOrderBookStreamer(const std::string& name,
+                                      const std::string& instrument,
+                                      const std::string& exchange,
+                                      size_t ring_capacity = 1u << 16,
+                                      size_t max_update_batch_size = 64);
     ~LiveBootstrappedOrderBookStreamer() override = default;
 
 protected:
     bool is_bootstrapped() const;
     void mark_bootstrapped();
     void reset_bootstrap();
+    void on_ring_overflow() override;
 
 private:
     std::atomic<bool> bootstrapped_;
@@ -175,19 +203,31 @@ private:
 
 class LiveOrderDeltaOrderBookStreamer : public LiveBootstrappedOrderBookStreamer {
 public:
-    LiveOrderDeltaOrderBookStreamer(const std::string& name, const std::string& instrument, const std::string& exchange, size_t ring_capacity = 1u << 16);
+    LiveOrderDeltaOrderBookStreamer(const std::string& name,
+                                    const std::string& instrument,
+                                    const std::string& exchange,
+                                    size_t ring_capacity = 1u << 16,
+                                    size_t max_update_batch_size = 64);
     ~LiveOrderDeltaOrderBookStreamer() override = default;
 };
 
 class LiveUpdateDeltaOrderBookStreamer : public LiveBootstrappedOrderBookStreamer {
 public:
-    LiveUpdateDeltaOrderBookStreamer(const std::string& name, const std::string& instrument, const std::string& exchange, size_t ring_capacity = 1u << 16);
+    LiveUpdateDeltaOrderBookStreamer(const std::string& name,
+                                     const std::string& instrument,
+                                     const std::string& exchange,
+                                     size_t ring_capacity = 1u << 16,
+                                     size_t max_update_batch_size = 64);
     ~LiveUpdateDeltaOrderBookStreamer() override = default;
 };
 
 class LiveSnapshotOrderBookStreamer : public LiveOrderBookStreamer {
 public:
-    LiveSnapshotOrderBookStreamer(const std::string& name, const std::string& instrument, const std::string& exchange, size_t ring_capacity = 1u << 16);
+    LiveSnapshotOrderBookStreamer(const std::string& name,
+                                  const std::string& instrument,
+                                  const std::string& exchange,
+                                  size_t ring_capacity = 1u << 16,
+                                  size_t max_update_batch_size = 64);
     ~LiveSnapshotOrderBookStreamer() override = default;
 };
 

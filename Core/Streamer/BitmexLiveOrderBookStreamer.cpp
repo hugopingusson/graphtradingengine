@@ -9,12 +9,14 @@
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <thread>
 #include <sstream>
 #include <stdexcept>
 
 #include <boost/asio/connect.hpp>
+#include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/beast/core.hpp>
@@ -64,13 +66,16 @@ inline bool to_double(const Json& value, double& out) {
 }
 }
 
-BitmexLiveOrderBookStreamer::BitmexLiveOrderBookStreamer(const std::string& instrument, size_t ring_capacity)
+BitmexLiveOrderBookStreamer::BitmexLiveOrderBookStreamer(const std::string& instrument,
+                                                         size_t ring_capacity,
+                                                         size_t max_update_batch_size)
     : MarketStreamer(instrument, "bitmex"),
       LiveUpdateDeltaOrderBookStreamer(
         fmt::format("BitmexLiveOrderBookStreamer(instrument={})", instrument),
         instrument,
         "bitmex",
-        ring_capacity
+        ring_capacity,
+        max_update_batch_size
     ),
       websocket_host("www.bitmex.com"),
       websocket_port("443"),
@@ -82,7 +87,7 @@ void BitmexLiveOrderBookStreamer::run_loop() {
         this->levels_by_id.clear();
         this->reset_bootstrap();
         this->connect_and_stream();
-        if (!this->is_stop_requested()) {
+        if (!this->is_stop_requested() && !this->is_desynced()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }
     }
@@ -122,11 +127,22 @@ bool BitmexLiveOrderBookStreamer::connect_and_stream() {
         const std::string subscribe = this->subscription_payload();
         ws.write(boost::asio::buffer(subscribe));
 
+        beast::flat_buffer buffer;
         while (!this->is_stop_requested()) {
-            beast::flat_buffer buffer;
+            if (this->consume_reconnect_request()) {
+                break;
+            }
+            buffer.consume(buffer.size());
             ws.read(buffer);
-            const std::string raw_message = beast::buffers_to_string(buffer.cdata());
-            this->handle_raw_message(raw_message);
+            const auto data = buffer.cdata();
+            if (data.size() > 0) {
+                const auto* raw_ptr = static_cast<const char*>(data.data());
+                const std::string_view raw_message(raw_ptr, data.size());
+                this->handle_raw_message(raw_message);
+            }
+            if (this->consume_reconnect_request()) {
+                break;
+            }
         }
 
         boost::system::error_code close_ec;
@@ -139,8 +155,8 @@ bool BitmexLiveOrderBookStreamer::connect_and_stream() {
 }
 
 
-bool BitmexLiveOrderBookStreamer::handle_raw_message(const std::string& raw_message) {
-    Json message = Json::parse(raw_message, nullptr, false);
+bool BitmexLiveOrderBookStreamer::handle_raw_message(std::string_view raw_message) {
+    Json message = Json::parse(raw_message.begin(), raw_message.end(), nullptr, false);
     if (message.is_discarded() || !message.is_object()) {
         return false;
     }
@@ -294,7 +310,9 @@ bool BitmexLiveOrderBookStreamer::handle_deltas(const std::string& action, const
         return false;
     }
 
-    bool pushed_any = false;
+    std::vector<UpdateMessage> batch_messages;
+    batch_messages.reserve(rows.size());
+    const int64_t payload_streamer_ts = now_ns();
 
     for (const auto& row : rows) {
         if (!row.symbol_matches) {
@@ -349,12 +367,11 @@ bool BitmexLiveOrderBookStreamer::handle_deltas(const std::string& action, const
             continue;
         }
 
-        const int64_t streamer_ts = now_ns();
         const int64_t exchange_ts = row.has_timestamp ? row.exchange_timestamp : default_exchange_timestamp;
 
         MarketTimeStamp market_ts{};
         market_ts.order_gateway_in_timestamp = exchange_ts;
-        market_ts.data_gateway_out_timestamp = streamer_ts;
+        market_ts.data_gateway_out_timestamp = payload_streamer_ts;
 
         Update update{};
         update.market_time_stamp = market_ts;
@@ -366,14 +383,18 @@ bool BitmexLiveOrderBookStreamer::handle_deltas(const std::string& action, const
         message.market_time_stamp = market_ts;
         message.update = update;
 
-        pushed_any |= this->emit_update_event(
-            streamer_ts,
-            this->get_order_book_source_node_id(),
-            message
-        );
+        batch_messages.push_back(message);
     }
 
-    return pushed_any;
+    if (batch_messages.empty()) {
+        return false;
+    }
+
+    return this->emit_update_batch_event(
+        payload_streamer_ts,
+        this->get_order_book_source_node_id(),
+        batch_messages
+    );
 }
 
 void BitmexLiveOrderBookStreamer::rebuild_snapshot(SnapshotData& out_snapshot) const {

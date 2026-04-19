@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 #include <nlohmann/json.hpp>
 
@@ -14,7 +15,9 @@
 
 class BinanceLiveOrderBookStreamer : public LiveSnapshotOrderBookStreamer {
 public:
-    explicit BinanceLiveOrderBookStreamer(const std::string& instrument, size_t ring_capacity = 1u << 16);
+    explicit BinanceLiveOrderBookStreamer(const std::string& instrument,
+                                          size_t ring_capacity = 1u << 16,
+                                          size_t max_update_batch_size = 64);
     ~BinanceLiveOrderBookStreamer() override = default;
 
 protected:
@@ -22,7 +25,7 @@ protected:
 
 private:
     bool connect_and_stream();
-    bool handle_raw_message(const std::string& raw_message);
+    bool handle_raw_message(std::string_view raw_message);
     bool handle_depth_message(const nlohmann::json& payload);
 
     std::string stream_target() const;

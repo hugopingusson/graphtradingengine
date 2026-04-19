@@ -19,7 +19,7 @@
 
 #pragma pack(push, 1)
 
-inline constexpr std::size_t kBookLevels = 10;
+inline constexpr std::size_t kBookLevels = 25;
 
 enum class Action : std::int32_t { ADD=0, CANCEL=1, MODIFY=2, TRADE=3 };
 // enum class Update : std::int32_t { INSERT=0, DELETE=1, UPDATE=2 };

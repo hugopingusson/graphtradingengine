@@ -15,7 +15,9 @@
 
 class BitmexLiveOrderBookStreamer : public LiveUpdateDeltaOrderBookStreamer {
 public:
-    explicit BitmexLiveOrderBookStreamer(const std::string& instrument, size_t ring_capacity = 1u << 16);
+    explicit BitmexLiveOrderBookStreamer(const std::string& instrument,
+                                         size_t ring_capacity = 1u << 16,
+                                         size_t max_update_batch_size = 64);
     ~BitmexLiveOrderBookStreamer() override = default;
 
 protected:
@@ -39,7 +41,7 @@ private:
     bool connect_and_stream();
     std::string subscription_payload() const;
 
-    bool handle_raw_message(const std::string& raw_message);
+    bool handle_raw_message(std::string_view raw_message);
     bool handle_partial(const std::vector<ParsedL2Row>& rows, const int64_t& default_exchange_timestamp);
     bool handle_deltas(const std::string& action, const std::vector<ParsedL2Row>& rows, const int64_t& default_exchange_timestamp);
 

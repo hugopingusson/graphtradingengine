@@ -8,6 +8,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
+#include <limits>
 #include <stdexcept>
 #include <unordered_set>
 
@@ -61,6 +62,22 @@ unordered_set<string> read_string_array(const ptree& root, const string& key, co
     }
     return out;
 }
+
+template <typename UIntType>
+UIntType read_positive_unsigned(const ptree& root, const string& key, const string& config_path) {
+    const auto value_opt = root.get_optional<long long>(key);
+    if (!value_opt) {
+        throw std::runtime_error(fmt::format("Missing key '{}' in {}", key, config_path));
+    }
+    const long long value = *value_opt;
+    if (value <= 0) {
+        throw std::runtime_error(fmt::format("Key '{}' in {} must be > 0", key, config_path));
+    }
+    if (static_cast<unsigned long long>(value) > static_cast<unsigned long long>(std::numeric_limits<UIntType>::max())) {
+        throw std::runtime_error(fmt::format("Key '{}' in {} is too large", key, config_path));
+    }
+    return static_cast<UIntType>(value);
+}
 }
 
 SaphirManager::SaphirManager()
@@ -81,10 +98,15 @@ string SaphirManager::get_instrument_config_path() const {
     return (fs::path(this->saphir_root) / "InstrumentConfig.json").string();
 }
 
+string SaphirManager::get_engine_config_path() const {
+    return (fs::path(this->saphir_root) / "EngineConfig.json").string();
+}
+
 void SaphirManager::initialize() const {
     this->ensure_root_exists();
     this->ensure_database_config_exists();
     this->ensure_instrument_config_exists();
+    this->ensure_engine_config_exists();
 }
 
 void SaphirManager::ensure_root_exists() const {
@@ -105,9 +127,9 @@ void SaphirManager::ensure_database_config_exists() const {
 
     ptree root;
     ptree databases;
-    databases.put("cme", "/media/hugo/T7/market_data_bin/databento/mbp10");
-    databases.put("binance", "/media/hugo/T7/market_data_bin/cryptolake/order_book");
-    databases.put("okx", "/media/hugo/T7/market_data_bin/cryptolake/order_book");
+    databases.put("cme", "/media/hugo/T7/market_data_bin/chi/databento");
+    databases.put("binance", "/media/hugo/T7/market_data_bin/nyk/cryptolake");
+    databases.put("okx", "/media/hugo/T7/market_data_bin/nyk/cryptolake");
     root.add_child("databases", databases);
 
     boost::property_tree::write_json(config_path.string(), root);
@@ -138,6 +160,20 @@ void SaphirManager::ensure_instrument_config_exists() const {
 
     root.add_child("futures", futures);
     root.add_child("cryptocurrencies", cryptocurrencies);
+    boost::property_tree::write_json(config_path.string(), root);
+}
+
+void SaphirManager::ensure_engine_config_exists() const {
+    const fs::path config_path(this->get_engine_config_path());
+    if (fs::exists(config_path)) {
+        return;
+    }
+
+    ptree root;
+    root.put("market_depth", 25);
+    root.put("ring_capacity", 16384);
+    root.put("max_update_batch_size", 64);
+    root.put("logger_mode", "live");
     boost::property_tree::write_json(config_path.string(), root);
 }
 
@@ -213,4 +249,48 @@ unordered_set<string> SaphirManager::get_all_instruments() const {
     const unordered_set<string> cryptos = this->get_cryptocurrencies_instruments();
     all.insert(cryptos.begin(), cryptos.end());
     return all;
+}
+
+size_t SaphirManager::get_market_depth() const {
+    this->initialize();
+    const string config_path = this->get_engine_config_path();
+    ptree root;
+    boost::property_tree::read_json(config_path, root);
+    return read_positive_unsigned<size_t>(root, "market_depth", config_path);
+}
+
+size_t SaphirManager::get_ring_capacity() const {
+    this->initialize();
+    const string config_path = this->get_engine_config_path();
+    ptree root;
+    boost::property_tree::read_json(config_path, root);
+    return read_positive_unsigned<size_t>(root, "ring_capacity", config_path);
+}
+
+size_t SaphirManager::get_max_update_batch_size() const {
+    this->initialize();
+    const string config_path = this->get_engine_config_path();
+    ptree root;
+    boost::property_tree::read_json(config_path, root);
+    return read_positive_unsigned<size_t>(root, "max_update_batch_size", config_path);
+}
+
+string SaphirManager::get_logger_mode() const {
+    this->initialize();
+    const string config_path = this->get_engine_config_path();
+    ptree root;
+    boost::property_tree::read_json(config_path, root);
+    const auto mode_opt = root.get_optional<string>("logger_mode");
+    if (!mode_opt) {
+        throw std::runtime_error(fmt::format("Missing key '{}' in {}", "logger_mode", config_path));
+    }
+
+    string mode = *mode_opt;
+    std::transform(mode.begin(), mode.end(), mode.begin(), [](const unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    if (mode != "live" && mode != "debug") {
+        throw std::runtime_error(fmt::format("Unsupported logger_mode '{}' in {}. Allowed: live, debug", *mode_opt, config_path));
+    }
+    return mode;
 }

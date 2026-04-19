@@ -11,7 +11,7 @@
 
 Mid::Mid():SingleInputConsumer(),market(nullptr) {}
 
-Mid::Mid(MarketOrderBook* market):SingleInputConsumer(market),market(market) {
+Mid::Mid(Market* market):SingleInputConsumer(market),market(market) {
     this->name=fmt::format("Mid({}@{})",market->get_instrument(),market->get_exchange());
     this->mark_dirty();
 }
@@ -29,7 +29,7 @@ void Mid::compute() {
 
 Bary::Bary():SingleInputConsumer(),market(nullptr) {}
 
-Bary::Bary(MarketOrderBook* market):SingleInputConsumer(market),market(market) {
+Bary::Bary(Market* market):SingleInputConsumer(market),market(market) {
     this->name=fmt::format("Bary({}@{})",market->get_instrument(),market->get_exchange());
     this->mark_dirty();
 }
@@ -47,7 +47,7 @@ void Bary::compute() {
 
 Vwap::Vwap():SingleInputConsumer(),market(nullptr),amount(0.0),ask_vwap(std::nan("")),bid_vwap(std::nan("")) {}
 
-Vwap::Vwap(MarketOrderBook *market,double const& amount):SingleInputConsumer(market),market(market),amount(amount),ask_vwap(std::nan("")),bid_vwap(std::nan("")) {
+Vwap::Vwap(Market *market,double const& amount):SingleInputConsumer(market),market(market),amount(amount),ask_vwap(std::nan("")),bid_vwap(std::nan("")) {
     this->name=fmt::format("Vwap({}@{};amount={})",market->get_instrument(),market->get_exchange(),amount);
     this->mark_dirty();
 }
@@ -132,7 +132,7 @@ double Vwap::get_bid_vwap() const {
 
 TopOfBookImbalance::TopOfBookImbalance() : SingleInputConsumer(), market(nullptr) {}
 
-TopOfBookImbalance::TopOfBookImbalance(MarketOrderBook* market)
+TopOfBookImbalance::TopOfBookImbalance(Market* market)
     : SingleInputConsumer(market), market(market) {
     this->name = fmt::format("TopOfBookImbalance({}@{})", market->get_instrument(), market->get_exchange());
     this->mark_dirty();

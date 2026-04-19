@@ -7,7 +7,7 @@
 #include "SaphirManager.h"
 
 
-DataBaseHelper::DataBaseHelper():database_root("/media/hugo/T7/market_data_bin/databento/mbp10") {}
+DataBaseHelper::DataBaseHelper():database_root("/media/hugo/T7/market_data_bin/chi/databento") {}
 
 
 string DataBaseHelper::get_data_path(const string &date, const string &instrument, const string &exchange) {
@@ -17,18 +17,16 @@ string DataBaseHelper::get_data_path(const string &date, const string &instrumen
         string liquid_contract = future_helper.get_liquid_contract(date);
         path base_dir(sm.get_database_root(exchange));
         path contract_dir(liquid_contract);
-        path exchange_dir(exchange);
         path file(fmt::format("{}.bin",date));
-        path full_path = base_dir / exchange_dir/contract_dir / file;
+        path full_path = base_dir / contract_dir / file;
         return full_path.string();
     }
 
     else {
         path base_dir(sm.get_database_root(exchange));
         path contract_dir(instrument);
-        path exchange_dir(exchange);
         path file(fmt::format("{}.bin",date));
-        path full_path = base_dir / exchange_dir/contract_dir/ file;
+        path full_path = base_dir / contract_dir / file;
         return full_path.string();
     }
 

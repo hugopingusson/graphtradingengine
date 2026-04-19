@@ -62,12 +62,12 @@ protected:
     size_t id;
 };
 
-class DatabaseWMBPBacktestStreamer : public BacktestStreamer,
-                                     virtual public MarketStreamer {
+class MarketByPriceBacktestStreamer : public BacktestStreamer,
+                                      virtual public MarketStreamer {
 public:
-    DatabaseWMBPBacktestStreamer();
-    ~DatabaseWMBPBacktestStreamer() override = default;
-    DatabaseWMBPBacktestStreamer(const string& instrument, const string& exchange);
+    MarketByPriceBacktestStreamer();
+    ~MarketByPriceBacktestStreamer() override = default;
+    MarketByPriceBacktestStreamer(const string& instrument, const string& exchange);
 
     void set_and_route(const Timestamp& start, const Timestamp& end) override;
     string get_name() override;
@@ -119,7 +119,7 @@ public:
     const map<size_t, BacktestStreamer*>& get_streamers() const;
 
     void register_source(Producer* source_node);
-    void register_market_orderbook_source(MarketOrderBook* market);
+    void register_market_source(Market* market);
     void register_heartbeat_source(HeartBeat* heart_beat);
 
     void route_and_set_streamers(const Timestamp& start,const Timestamp& end);
