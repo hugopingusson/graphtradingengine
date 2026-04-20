@@ -19,6 +19,7 @@ public:
     std::string get_database_config_path() const;
     std::string get_instrument_config_path() const;
     std::string get_engine_config_path() const;
+    std::string get_tick_config_path() const;
 
     // Ensure root folder and default JSON configs exist.
     void initialize() const;
@@ -41,6 +42,7 @@ public:
     std::size_t get_market_depth() const;
     std::size_t get_ring_capacity() const;
     std::size_t get_max_update_batch_size() const;
+    double get_market_tick_value(const std::string& exchange, const std::string& instrument) const;
     std::string get_logger_mode() const;
 
 private:
@@ -50,6 +52,7 @@ private:
     void ensure_database_config_exists() const;
     void ensure_instrument_config_exists() const;
     void ensure_engine_config_exists() const;
+    void ensure_tick_config_exists() const;
     static std::string normalize_exchange(const std::string& exchange);
 };
 

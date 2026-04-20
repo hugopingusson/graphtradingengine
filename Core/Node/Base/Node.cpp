@@ -1,5 +1,9 @@
 #include "Node.h"
 #include <cmath>
+#include <stdexcept>
+
+#include "../../Graph/Graph.h"
+#include "../../../Helper/SaphirManager.h"
 
 Node::Node() {
     sequence_number = int64_t();
@@ -94,44 +98,87 @@ double Quote::spread() {
 }
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////
+MarketConsumer::MarketConsumer()
+    : Consumer(),
+      market_parent(nullptr),
+      instrument(),
+      exchange() {}
 
-SingleInputConsumer::SingleInputConsumer(): parent(nullptr),value(std::nan("")){}
-// Signal::Signal(const int& node_id,const string &name,Logger* logger):ChildNode(node_id,name,logger),value(std::nan("")) {}
+MarketConsumer::MarketConsumer(const string& instrument,
+                               const string& exchange)
+    : Consumer(),
+      market_parent(nullptr),
+      instrument(instrument),
+      exchange(exchange) {}
 
-SingleInputConsumer::SingleInputConsumer(Node *parent) : parent(parent), value(std::nan("")) {}
-
-
-double SingleInputConsumer::get_value() const {
-    return this->value;
-}
-
-Node* SingleInputConsumer::get_parent() const {
-    return this->parent;
-}
-
-bool SingleInputConsumer::update() {
-    if (!this->parent) {
-        const bool was_valid = this->valid;
-        this->valid = false;
-        return was_valid;
-    }
-
-    if (!this->parent->is_valid()) {
-        const bool was_valid = this->valid;
-        this->valid = false;
-        return was_valid;
-    }
-
+bool MarketConsumer::update() {
     const bool was_valid = this->valid;
-    const double last_value = this->value;
-    this->compute();
 
-    if (this->valid != was_valid) {
-        return true;
+    if (!this->market_parent || !this->market_parent->is_valid()) {
+        this->valid = false;
+        return was_valid;
     }
-    if (!this->valid) {
-        return false;
+
+    return this->recompute();
+}
+
+Market* MarketConsumer::connect(Graph& graph) {
+    if (this->instrument.empty()) {
+        throw std::runtime_error("MarketConsumer::connect cannot connect without instrument");
     }
-    return this->value != last_value;
+
+    Market* selected_market = nullptr;
+    for (const auto& producer_entry : graph.get_producer_container()) {
+        auto* market = dynamic_cast<Market*>(producer_entry.second);
+        if (!market) {
+            continue;
+        }
+        if (market->get_instrument() != this->instrument) {
+            continue;
+        }
+        if (!this->exchange.empty() && market->get_exchange() != this->exchange) {
+            continue;
+        }
+        selected_market = market;
+        break;
+    }
+
+    if (!selected_market) {
+        if (this->exchange.empty()) {
+            throw std::runtime_error(
+                "MarketConsumer::connect requires a non-empty exchange to create a Market producer"
+            );
+        }
+
+        const SaphirManager saphir;
+        const double tick_value = saphir.get_market_tick_value(this->exchange, this->instrument);
+        selected_market = new Market(
+            this->instrument,
+            this->exchange,
+            static_cast<int>(kBookLevels),
+            tick_value
+        );
+        graph.add_producer(selected_market);
+    }
+
+    this->market_parent = selected_market;
+    this->instrument = selected_market->get_instrument();
+    this->exchange = selected_market->get_exchange();
+
+    graph.add_edge(selected_market, this);
+    this->mark_dirty();
+
+    return selected_market;
+}
+
+const string& MarketConsumer::get_instrument() const {
+    return this->instrument;
+}
+
+const string& MarketConsumer::get_exchange() const {
+    return this->exchange;
+}
+
+Market* MarketConsumer::get_market_parent() const {
+    return this->market_parent;
 }

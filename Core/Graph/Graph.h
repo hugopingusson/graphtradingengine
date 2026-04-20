@@ -17,7 +17,10 @@ using namespace std;
 class Graph {
     public:
     Graph();
+    ~Graph();
     Graph(Logger* logger);
+    Graph(const Graph&) = delete;
+    Graph& operator=(const Graph&) = delete;
 
     int64_t get_last_graph_latency() const;
     Logger* get_logger();

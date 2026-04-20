@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <limits>
@@ -102,11 +103,16 @@ string SaphirManager::get_engine_config_path() const {
     return (fs::path(this->saphir_root) / "EngineConfig.json").string();
 }
 
+string SaphirManager::get_tick_config_path() const {
+    return (fs::path(this->saphir_root) / "TickConfig.json").string();
+}
+
 void SaphirManager::initialize() const {
     this->ensure_root_exists();
     this->ensure_database_config_exists();
     this->ensure_instrument_config_exists();
     this->ensure_engine_config_exists();
+    this->ensure_tick_config_exists();
 }
 
 void SaphirManager::ensure_root_exists() const {
@@ -174,6 +180,21 @@ void SaphirManager::ensure_engine_config_exists() const {
     root.put("ring_capacity", 16384);
     root.put("max_update_batch_size", 64);
     root.put("logger_mode", "live");
+    boost::property_tree::write_json(config_path.string(), root);
+}
+
+void SaphirManager::ensure_tick_config_exists() const {
+    const fs::path config_path(this->get_tick_config_path());
+    if (fs::exists(config_path)) {
+        return;
+    }
+
+    ptree root;
+    ptree exchanges;
+    exchanges.add_child("cme", ptree{});
+    exchanges.add_child("binance", ptree{});
+    exchanges.add_child("okx", ptree{});
+    root.add_child("tick_values", exchanges);
     boost::property_tree::write_json(config_path.string(), root);
 }
 
@@ -273,6 +294,36 @@ size_t SaphirManager::get_max_update_batch_size() const {
     ptree root;
     boost::property_tree::read_json(config_path, root);
     return read_positive_unsigned<size_t>(root, "max_update_batch_size", config_path);
+}
+
+double SaphirManager::get_market_tick_value(const string& exchange, const string& instrument) const {
+    this->initialize();
+    const string config_path = this->get_tick_config_path();
+    const string normalized_exchange = normalize_exchange(exchange);
+    if (instrument.empty()) {
+        throw std::runtime_error(fmt::format("Instrument cannot be empty for tick lookup in {}", config_path));
+    }
+
+    ptree root;
+    boost::property_tree::read_json(config_path, root);
+
+    const string key = fmt::format("tick_values.{}.{}", normalized_exchange, instrument);
+    const auto tick_value_opt = root.get_optional<double>(key);
+    if (!tick_value_opt) {
+        throw std::runtime_error(fmt::format(
+            "Missing tick value key '{}' in {}. Configure tick_values by exchange/instrument.",
+            key,
+            config_path
+        ));
+    }
+    if (!std::isfinite(*tick_value_opt) || *tick_value_opt <= 0.0) {
+        throw std::runtime_error(fmt::format(
+            "Key '{}' in {} must be a finite positive number",
+            key,
+            config_path
+        ));
+    }
+    return *tick_value_opt;
 }
 
 string SaphirManager::get_logger_mode() const {

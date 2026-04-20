@@ -8,64 +8,66 @@
 #include "../Base/Node.h"
 #include "../Base/MarketNode.h"
 
-class Mid:public SingleInputConsumer {
+class Mid:public MarketConsumer {
     public:
     Mid();
     ~Mid() override = default;
-    Mid(Market* market);
+    explicit Mid(const string& instrument, const string& exchange);
 
-    void compute() override;
+    bool recompute() override;
+    [[nodiscard]] double get_value() const;
 
     protected:
-    Market* market;
-
+    double value;
 };
 
 
-class Bary:public SingleInputConsumer {
+class Bary:public MarketConsumer {
     public:
     Bary();
     ~Bary() override = default;
-    Bary(Market* market);
+    explicit Bary(const string& instrument, const string& exchange);
 
-    void compute() override;
+    bool recompute() override;
+    [[nodiscard]] double get_value() const;
 
     protected:
-    Market* market;
-
+    double value;
 };
 
 
 
-class Vwap:public SingleInputConsumer {
+class Vwap:public MarketConsumer {
     public:
     Vwap();
     ~Vwap() override = default;
-    Vwap(Market* market,double const& size);
+    explicit Vwap(const string& instrument, const string& exchange, double const& size);
 
-    void compute() override;
+    bool recompute() override;
+    [[nodiscard]] double get_value() const;
 
     double get_ask_vwap() const;
     double get_bid_vwap() const;
 
     protected:
-    Market* market;
-    double amount;
+    double value;
+    double size;
     double ask_vwap;
     double bid_vwap;
 
 };
 
-class TopOfBookImbalance : public SingleInputConsumer {
+class TopOfBookImbalance : public MarketConsumer {
 public:
     TopOfBookImbalance();
     ~TopOfBookImbalance() override = default;
-    TopOfBookImbalance(Market* market);
+    explicit TopOfBookImbalance(const string& instrument, const string& exchange);
 
-    void compute() override;
+    bool recompute() override;
+    [[nodiscard]] double get_value() const;
 
 protected:
-    Market* market;
+    double value;
 };
 
 

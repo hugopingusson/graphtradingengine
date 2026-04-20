@@ -12,7 +12,6 @@
 
 #include <fmt/format.h>
 
-#include "../Node/Base/HeartBeat.h"
 #include "../Node/Base/MarketNode.h"
 #include "../../Data/DataStructure/DataStructure.h"
 #include "../../Logger/Logger.h"
@@ -87,28 +86,6 @@ protected:
     MarketByPriceMessage current_message;
 };
 
-class HeartBeatBackTestStreamer : public BacktestStreamer {
-public:
-    ~HeartBeatBackTestStreamer() override = default;
-    HeartBeatBackTestStreamer();
-    explicit HeartBeatBackTestStreamer(const double& frequency);
-
-    void set_heartbeat_source_node_id(const int& heartbeat_source_node_id);
-    void set_and_route(const Timestamp &start, const Timestamp &end) override;
-    string get_name() override;
-    double get_frequency();
-    bool advance() override;
-    [[nodiscard]] bool is_good() const override;
-    HeapItem get_current_heap_item() override;
-    void process_current(Graph* graph) override;
-
-protected:
-    double frequency;
-    int heartbeat_source_node_id;
-    int64_t current_reception_timestamp;
-    int64_t end_reception_timestamp;
-};
-
 class BackTestStreamerContainer {
 public:
     BackTestStreamerContainer();
@@ -120,7 +97,6 @@ public:
 
     void register_source(Producer* source_node);
     void register_market_source(Market* market);
-    void register_heartbeat_source(HeartBeat* heart_beat);
 
     void route_and_set_streamers(const Timestamp& start,const Timestamp& end);
 

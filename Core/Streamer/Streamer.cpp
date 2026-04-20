@@ -164,68 +164,6 @@ MarketByPriceMessage MarketByPriceBacktestStreamer::get_current_message() const 
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-HeartBeatBackTestStreamer::HeartBeatBackTestStreamer():frequency(),heartbeat_source_node_id(),current_reception_timestamp(),end_reception_timestamp(){}
-HeartBeatBackTestStreamer::HeartBeatBackTestStreamer(const double& frequency):frequency(frequency),heartbeat_source_node_id(),current_reception_timestamp(),end_reception_timestamp(){}
-
-string HeartBeatBackTestStreamer::get_name() {
-    return fmt::format("HeartBeatBackTestStreamer(frequency={})",std::to_string(frequency));
-}
-
-double HeartBeatBackTestStreamer::get_frequency() {
-    return this->frequency;
-}
-
-void HeartBeatBackTestStreamer::set_heartbeat_source_node_id(const int& heartbeat_source_node_id) {
-    this->heartbeat_source_node_id = heartbeat_source_node_id;
-}
-
-bool HeartBeatBackTestStreamer::advance() {
-    if (this->current_reception_timestamp >= this->end_reception_timestamp) {
-        return false;
-    }
-    this->current_reception_timestamp += int64_t(1e9 * this->frequency);
-    return this->current_reception_timestamp <= this->end_reception_timestamp;
-}
-
-bool HeartBeatBackTestStreamer::is_good() const {
-    return this->current_reception_timestamp <= this->end_reception_timestamp;
-}
-
-HeapItem HeartBeatBackTestStreamer::get_current_heap_item() {
-    return {this->current_reception_timestamp,this->id};
-}
-
-
-void HeartBeatBackTestStreamer::set_and_route(const Timestamp &start, const Timestamp &end) {
-    this->current_reception_timestamp=start.unixtime();
-    this->end_reception_timestamp=end.unixtime();
-}
-
-void HeartBeatBackTestStreamer::process_current(Graph* graph) {
-    if (!graph || this->heartbeat_source_node_id <= 0) {
-        return;
-    }
-
-    const auto& producers = graph->get_producer_container();
-    auto producer_it = producers.find(this->heartbeat_source_node_id);
-    if (producer_it == producers.end() || !producer_it->second) {
-        return;
-    }
-
-    HeartBeatEvent event(
-        this->current_reception_timestamp,
-        this->heartbeat_source_node_id,
-        this->frequency,
-        Location::UNKNOWN,
-        Listener::PRODUCTION
-    );
-    producer_it->second->on_event(&event);
-    graph->update(this->heartbeat_source_node_id);
-
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BackTestStreamerContainer::BackTestStreamerContainer():max_id(),logger(nullptr),streamers(){}
@@ -265,26 +203,7 @@ void BackTestStreamerContainer::register_source(Producer* source_node) {
         return;
     }
 
-    if (auto* heartbeat = dynamic_cast<HeartBeat*>(source_node)) {
-        this->register_heartbeat_source(heartbeat);
-        return;
-    }
-
     throw std::runtime_error(fmt::format("Error in register_source source = {} cannot be registered",source_node->get_name()));
-}
-
-void BackTestStreamerContainer::register_heartbeat_source(HeartBeat* heart_beat) {
-    HeartBeatBackTestStreamer* new_streamer = new HeartBeatBackTestStreamer(heart_beat->get_frequency());
-    if (this->logger) {
-        this->logger->log_info("StreamerContainer",fmt::format("Creating new streamer : {}",new_streamer->get_name()));
-    }
-    new_streamer->set_heartbeat_source_node_id(heart_beat->get_node_id());
-    this->max_id+=1;
-    new_streamer->set_id(this->max_id);
-    if (this->logger) {
-        this->logger->log_info("StreamerContainer",fmt::format("Setting heartbeat source id to {}: Pointing to {} heartbeat_source_node_id={}",new_streamer->get_name(),heart_beat->get_name(),std::to_string(heart_beat->get_node_id())));
-    }
-    this->streamers[max_id]=new_streamer;
 }
 
 void BackTestStreamerContainer::register_market_source(Market* market) {

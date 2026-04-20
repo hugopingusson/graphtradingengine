@@ -15,6 +15,9 @@
 
 using namespace std;
 
+class Graph;
+class Market;
+
 class Node {
     public:
     Node();
@@ -104,25 +107,47 @@ class Quote : public Consumer {
 };
 
 
-class SingleInputConsumer: public Consumer {
+// class SingleInputConsumer: public Consumer {
+// public:
+//     ~SingleInputConsumer() = default;
+//     SingleInputConsumer();
+//     SingleInputConsumer(Node* parent);
+//     // explicit Signal(const int& node_id,const string& name,Logger* logger);
+//
+//
+//
+//     virtual void compute()=0;
+//     bool update() override;
+//
+//     [[nodiscard]] double get_value() const;
+//
+//     Node* get_parent() const;
+//
+// protected:
+//     Node* parent;
+//     double value;
+// };
+
+class MarketConsumer : public Consumer {
 public:
-    ~SingleInputConsumer() = default;
-    SingleInputConsumer();
-    SingleInputConsumer(Node* parent);
-    // explicit Signal(const int& node_id,const string& name,Logger* logger);
+    ~MarketConsumer() override = default;
+    MarketConsumer();
+    explicit MarketConsumer(const string& instrument,
+                            const string& exchange);
 
-
-
-    virtual void compute()=0;
+    Market* connect(Graph& graph);
     bool update() override;
 
-    [[nodiscard]] double get_value() const;
-
-    Node* get_parent() const;
+    [[nodiscard]] const string& get_instrument() const;
+    [[nodiscard]] const string& get_exchange() const;
+    [[nodiscard]] Market* get_market_parent() const;
 
 protected:
-    Node* parent;
-    double value;
+    virtual bool recompute() = 0;
+
+    Market* market_parent;
+    string instrument;
+    string exchange;
 };
 
 #endif //CLASS_NODE_H

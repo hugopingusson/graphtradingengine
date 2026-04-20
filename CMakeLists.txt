@@ -32,9 +32,7 @@ add_executable(GraphTradingEngine
         Core/Graph/Graph.cpp
         Core/Node/Base/Node.cpp
         Core/Node/Base/MarketNode.cpp
-        Core/Node/Base/HeartBeat.cpp
         Core/Node/Signals/OrderBookSignal.cpp
-        Core/Node/Signals/MathSignal.cpp
         Core/Streamer/Streamer.cpp
         Core/Streamer/LiveStreamer.cpp
         Core/Streamer/BitmexLiveOrderBookStreamer.cpp

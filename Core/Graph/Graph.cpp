@@ -33,6 +33,12 @@ Graph::Graph(Logger *logger) : Graph() {
     }
 }
 
+Graph::~Graph() {
+    for (auto& producer : this->producer_container) {
+        delete producer.second;
+    }
+}
+
 
 
 Logger* Graph::get_logger() {
@@ -276,8 +282,6 @@ void Graph::update(const int& source_id) {
         }
     }
 }
-
-
 
 
 

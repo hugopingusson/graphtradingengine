@@ -9,74 +9,131 @@
 #include <fmt/format.h>
 
 
-Mid::Mid():SingleInputConsumer(),market(nullptr) {}
+Mid::Mid():MarketConsumer(), value(std::nan("")) {}
 
-Mid::Mid(Market* market):SingleInputConsumer(market),market(market) {
-    this->name=fmt::format("Mid({}@{})",market->get_instrument(),market->get_exchange());
+Mid::Mid(const string& instrument, const string& exchange)
+    : MarketConsumer(instrument, exchange), value(std::nan("")) {
+    this->name = exchange.empty()
+        ? fmt::format("Mid({})", instrument)
+        : fmt::format("Mid({}@{})", instrument, exchange);
     this->mark_dirty();
 }
 
-void Mid::compute() {
-    if (!this->market) {
+bool Mid::recompute() {
+    const bool was_valid = this->valid;
+    const double last_value = this->value;
+
+    auto* market = this->market_parent;
+    if (!market) {
         this->value = std::nan("");
         this->valid = false;
-        return;
+    } else {
+        this->value = market->mid();
+        this->valid = !std::isnan(this->value);
     }
 
-    this->value = this->market->mid();
-    this->valid = !std::isnan(this->value);
+    if (this->valid != was_valid) {
+        return true;
+    }
+    if (!this->valid) {
+        return false;
+    }
+    return this->value != last_value;
 }
 
-Bary::Bary():SingleInputConsumer(),market(nullptr) {}
+double Mid::get_value() const {
+    return this->value;
+}
 
-Bary::Bary(Market* market):SingleInputConsumer(market),market(market) {
-    this->name=fmt::format("Bary({}@{})",market->get_instrument(),market->get_exchange());
+Bary::Bary():MarketConsumer(), value(std::nan("")) {}
+
+Bary::Bary(const string& instrument, const string& exchange)
+    : MarketConsumer(instrument, exchange), value(std::nan("")) {
+    this->name = exchange.empty()
+        ? fmt::format("Bary({})", instrument)
+        : fmt::format("Bary({}@{})", instrument, exchange);
     this->mark_dirty();
 }
 
-void Bary::compute() {
-    if (!this->market) {
+bool Bary::recompute() {
+    const bool was_valid = this->valid;
+    const double last_value = this->value;
+
+    auto* market = this->market_parent;
+    if (!market) {
         this->value = std::nan("");
         this->valid = false;
-        return;
+    } else {
+        this->value = market->bary();
+        this->valid = !std::isnan(this->value);
     }
 
-    this->value = this->market->bary();
-    this->valid = !std::isnan(this->value);
+    if (this->valid != was_valid) {
+        return true;
+    }
+    if (!this->valid) {
+        return false;
+    }
+    return this->value != last_value;
 }
 
-Vwap::Vwap():SingleInputConsumer(),market(nullptr),amount(0.0),ask_vwap(std::nan("")),bid_vwap(std::nan("")) {}
+double Bary::get_value() const {
+    return this->value;
+}
 
-Vwap::Vwap(Market *market,double const& amount):SingleInputConsumer(market),market(market),amount(amount),ask_vwap(std::nan("")),bid_vwap(std::nan("")) {
-    this->name=fmt::format("Vwap({}@{};amount={})",market->get_instrument(),market->get_exchange(),amount);
+Vwap::Vwap():MarketConsumer(),value(std::nan("")),size(0.0),ask_vwap(std::nan("")),bid_vwap(std::nan("")) {}
+
+Vwap::Vwap(const string& instrument, const string& exchange, double const& size)
+    : MarketConsumer(instrument, exchange),
+      value(std::nan("")),
+      size(size),
+      ask_vwap(std::nan("")),
+      bid_vwap(std::nan("")) {
+    this->name = exchange.empty()
+        ? fmt::format("Vwap({};size={})", instrument, size)
+        : fmt::format("Vwap({}@{};size={})", instrument, exchange, size);
     this->mark_dirty();
 }
 
-void Vwap::compute() {
-    if (!this->market) {
+bool Vwap::recompute() {
+    const bool was_valid = this->valid;
+    const double last_value = this->value;
+
+    auto finish = [&]() -> bool {
+        if (this->valid != was_valid) {
+            return true;
+        }
+        if (!this->valid) {
+            return false;
+        }
+        return this->value != last_value;
+    };
+
+    auto* market = this->market_parent;
+    if (!market) {
         this->ask_vwap = std::nan("");
         this->bid_vwap = std::nan("");
         this->value = std::nan("");
         this->valid = false;
-        return;
+        return finish();
     }
 
-    const auto& asks = this->market->get_ask_ladder();
-    const auto& bids = this->market->get_bid_ladder();
+    const std::size_t ask_levels = market->get_ask_level_count();
+    const std::size_t bid_levels = market->get_bid_level_count();
 
-    if (this->amount <= 0.0) {
-        if (asks.empty() || bids.empty()) {
+    if (this->size <= 0.0) {
+        if (ask_levels == 0 || bid_levels == 0) {
             this->ask_vwap = std::nan("");
             this->bid_vwap = std::nan("");
             this->value = std::nan("");
             this->valid = false;
-            return;
+            return finish();
         }
-        this->ask_vwap = asks.begin()->first;
-        this->bid_vwap = bids.begin()->first;
+        this->ask_vwap = market->ask_price(0);
+        this->bid_vwap = market->bid_price(0);
         this->value = 0.5 * (this->ask_vwap + this->bid_vwap);
         this->valid = true;
-        return;
+        return finish();
     }
 
     double ask_notional = 0.0;
@@ -84,42 +141,51 @@ void Vwap::compute() {
     double ask_filled = 0.0;
     double bid_filled = 0.0;
 
-    for (const auto& [price, level] : asks) {
-        if (ask_filled >= this->amount) {
-            break;
-        }
-        if (level.amount <= 0.0) {
+    for (std::size_t i = 0; i < ask_levels && ask_filled < this->size; ++i) {
+        const double price = market->ask_price(i);
+        const double size = market->ask_size(i);
+        if (!std::isfinite(price) || !std::isfinite(size) || size <= 0.0) {
             continue;
         }
-        const double take = std::min(this->amount - ask_filled, level.amount);
+        if (ask_filled >= this->size) {
+            break;
+        }
+        const double take = std::min(this->size - ask_filled, size);
         ask_notional += price * take;
         ask_filled += take;
     }
 
-    for (const auto& [price, level] : bids) {
-        if (bid_filled >= this->amount) {
-            break;
-        }
-        if (level.amount <= 0.0) {
+    for (std::size_t i = 0; i < bid_levels && bid_filled < this->size; ++i) {
+        const double price = market->bid_price(i);
+        const double size = market->bid_size(i);
+        if (!std::isfinite(price) || !std::isfinite(size) || size <= 0.0) {
             continue;
         }
-        const double take = std::min(this->amount - bid_filled, level.amount);
+        if (bid_filled >= this->size) {
+            break;
+        }
+        const double take = std::min(this->size - bid_filled, size);
         bid_notional += price * take;
         bid_filled += take;
     }
 
-    if (ask_filled < this->amount || bid_filled < this->amount) {
+    if (ask_filled < this->size || bid_filled < this->size) {
         this->ask_vwap = std::nan("");
         this->bid_vwap = std::nan("");
         this->value = std::nan("");
         this->valid = false;
-        return;
+        return finish();
     }
 
-    this->ask_vwap = ask_notional / this->amount;
-    this->bid_vwap = bid_notional / this->amount;
+    this->ask_vwap = ask_notional / this->size;
+    this->bid_vwap = bid_notional / this->size;
     this->value = 0.5 * (this->ask_vwap + this->bid_vwap);
     this->valid = true;
+    return finish();
+}
+
+double Vwap::get_value() const {
+    return this->value;
 }
 
 double Vwap::get_ask_vwap() const {
@@ -130,31 +196,47 @@ double Vwap::get_bid_vwap() const {
     return this->bid_vwap;
 }
 
-TopOfBookImbalance::TopOfBookImbalance() : SingleInputConsumer(), market(nullptr) {}
+TopOfBookImbalance::TopOfBookImbalance() : MarketConsumer(), value(std::nan("")) {}
 
-TopOfBookImbalance::TopOfBookImbalance(Market* market)
-    : SingleInputConsumer(market), market(market) {
-    this->name = fmt::format("TopOfBookImbalance({}@{})", market->get_instrument(), market->get_exchange());
+TopOfBookImbalance::TopOfBookImbalance(const string& instrument, const string& exchange)
+    : MarketConsumer(instrument, exchange), value(std::nan("")) {
+    this->name = exchange.empty()
+        ? fmt::format("TopOfBookImbalance({})", instrument)
+        : fmt::format("TopOfBookImbalance({}@{})", instrument, exchange);
     this->mark_dirty();
 }
 
-void TopOfBookImbalance::compute() {
-    if (!this->market) {
+bool TopOfBookImbalance::recompute() {
+    const bool was_valid = this->valid;
+    const double last_value = this->value;
+
+    auto* market = this->market_parent;
+    if (!market) {
         this->value = std::nan("");
         this->valid = false;
-        return;
+    } else {
+        const double best_bid_size = market->get_best_bid_size();
+        const double best_ask_size = market->get_best_ask_size();
+        const double denom = best_bid_size + best_ask_size;
+
+        if (!std::isfinite(best_bid_size) || !std::isfinite(best_ask_size) || denom <= 0.0) {
+            this->value = std::nan("");
+            this->valid = false;
+        } else {
+            this->value = (best_bid_size - best_ask_size) / denom;
+            this->valid = std::isfinite(this->value);
+        }
     }
 
-    const double best_bid_size = this->market->get_best_bid_size();
-    const double best_ask_size = this->market->get_best_ask_size();
-    const double denom = best_bid_size + best_ask_size;
-
-    if (!std::isfinite(best_bid_size) || !std::isfinite(best_ask_size) || denom <= 0.0) {
-        this->value = std::nan("");
-        this->valid = false;
-        return;
+    if (this->valid != was_valid) {
+        return true;
     }
+    if (!this->valid) {
+        return false;
+    }
+    return this->value != last_value;
+}
 
-    this->value = (best_bid_size - best_ask_size) / denom;
-    this->valid = std::isfinite(this->value);
+double TopOfBookImbalance::get_value() const {
+    return this->value;
 }
