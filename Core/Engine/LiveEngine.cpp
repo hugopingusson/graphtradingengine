@@ -126,14 +126,9 @@ void LiveEngine::register_market_source(Market* market) {
         return static_cast<char>(std::tolower(c));
     });
 
-    size_t ring_capacity = 1u << 16;
-    size_t max_update_batch_size = 64;
-    try {
-        const SaphirManager saphir;
-        ring_capacity = saphir.get_ring_capacity();
-        max_update_batch_size = saphir.get_max_update_batch_size();
-    } catch (const std::exception&) {
-    }
+    const SaphirManager saphir;
+    const size_t ring_capacity = saphir.get_ring_capacity();
+    const size_t max_update_batch_size = saphir.get_max_update_batch_size();
 
     std::unique_ptr<LiveStreamer> new_streamer;
     if (exchange == "bitmex") {
@@ -288,13 +283,25 @@ void LiveEngine::run_consumer_loop() {
         }
     };
 
+    std::vector<LiveStreamer*> streamer_by_id(this->max_streamer_id + 1, nullptr);
+    for (const auto& kv : this->streamers) {
+        if (!kv.second) {
+            throw std::runtime_error(fmt::format(
+                "LiveEngine::run_consumer_loop null streamer for streamer_id={}",
+                kv.first
+            ));
+        }
+        streamer_by_id[kv.first] = kv.second.get();
+    }
+
     std::priority_queue<HeapEntry, std::vector<HeapEntry>, HeapEntryCompare> ready_heap;
     std::vector<uint8_t> streamer_in_heap(this->max_streamer_id + 1, 0);
 
-    auto enqueue_streamer_head = [&](const size_t streamer_id, LiveStreamer* streamer) {
-        if (!streamer || streamer_id >= streamer_in_heap.size() || streamer_in_heap[streamer_id] != 0) {
+    auto enqueue_streamer_head = [&](const size_t streamer_id) {
+        if (streamer_in_heap[streamer_id] != 0) {
             return;
         }
+        LiveStreamer* streamer = streamer_by_id[streamer_id];
         const Event* head_event = streamer->peek_event();
         if (!head_event) {
             return;
@@ -304,8 +311,8 @@ void LiveEngine::run_consumer_loop() {
     };
 
     auto rescan_streamers = [&]() {
-        for (const auto& kv : this->streamers) {
-            enqueue_streamer_head(kv.first, kv.second.get());
+        for (size_t streamer_id = 1; streamer_id < streamer_by_id.size(); ++streamer_id) {
+            enqueue_streamer_head(streamer_id);
         }
     };
 
@@ -334,16 +341,8 @@ void LiveEngine::run_consumer_loop() {
         const HeapEntry candidate = ready_heap.top();
         ready_heap.pop();
 
-        if (candidate.streamer_id >= streamer_in_heap.size()) {
-            continue;
-        }
         streamer_in_heap[candidate.streamer_id] = 0;
-
-        const auto streamer_it = this->streamers.find(candidate.streamer_id);
-        if (streamer_it == this->streamers.end() || !streamer_it->second) {
-            continue;
-        }
-        LiveStreamer* selected_streamer = streamer_it->second.get();
+        LiveStreamer* selected_streamer = streamer_by_id[candidate.streamer_id];
 
         const Event* head_event = selected_streamer->peek_event();
         if (!head_event) {
@@ -359,7 +358,7 @@ void LiveEngine::run_consumer_loop() {
 
         idle_cycles = 0;
         LiveStreamer::EventPtr event;
-        if (!selected_streamer->pop_event(event) || !event) {
+        if (!selected_streamer->pop_event(event)) {
             continue;
         }
 
@@ -375,20 +374,8 @@ void LiveEngine::run_consumer_loop() {
 }
 
 void LiveEngine::process_event(LiveStreamer::EventPtr event) {
-    if (!event || !this->graph) {
-        return;
-    }
-
     const int source_id = event->get_source_id_trigger();
-    const auto& producers = this->graph->get_producer_container();
-    const auto producer_it = producers.find(source_id);
-    if (producer_it == producers.end() || !producer_it->second) {
-        if (this->logger) {
-            this->logger->log_warn("LiveEngine", fmt::format("Ignoring event from unknown source_id={}", source_id));
-        }
-        return;
-    }
-
-    producer_it->second->on_event(event.get());
+    Producer* producer = this->graph->get_producer_container().at(source_id);
+    producer->on_event(event.get());
     this->graph->update(source_id);
 }

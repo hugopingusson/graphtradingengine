@@ -6,8 +6,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <exception>
 #include <limits>
+#include <stdexcept>
 
 #include "../../../Helper/SaphirManager.h"
 
@@ -25,7 +25,8 @@ Market::Market()
       ask_level_count(0),
       bid_level_count(0),
       depth(),
-      tick_value() {}
+      tick_value(),
+      snapshot_validation_enabled(false) {}
 
 Market::Market(const string& instrument, const string& exchange, const int& depth, const double& tick_value)
     : Node(fmt::format("Market(instrument={},exchange={})", instrument, exchange)),
@@ -36,18 +37,21 @@ Market::Market(const string& instrument, const string& exchange, const int& dept
       ask_level_count(0),
       bid_level_count(0),
       depth(depth),
-      tick_value(tick_value) {
+      tick_value(tick_value),
+      snapshot_validation_enabled(false) {
+    const SaphirManager saphir;
     if (this->depth <= 0) {
-        try {
-            const SaphirManager saphir;
-            this->depth = static_cast<int>(saphir.get_market_depth());
-        } catch (const std::exception&) {
-            this->depth = static_cast<int>(kBookLevels);
-        }
+        this->depth = static_cast<int>(saphir.get_market_depth());
     }
     if (this->depth <= 0) {
-        this->depth = 1;
+        throw std::runtime_error(fmt::format(
+            "Invalid market depth={} for Market(instrument={},exchange={})",
+            this->depth,
+            this->instrument,
+            this->exchange
+        ));
     }
+    this->snapshot_validation_enabled = (saphir.get_logger_mode() == "debug");
     this->trim_to_depth();
 }
 
@@ -464,14 +468,18 @@ void Market::handle(MarketByPriceEvent& mbp_event) {
     this->last_reception_timestamp = mbp_event.get_reception_timestamp();
     this->last_order_gateway_in_timestamp = mbp_event.get_last_market_timestamp().order_gateway_in_timestamp;
     this->load_snapshot(mbp_event.get_snapshot_data());
-    this->valid = this->check_snapshot();
+    this->valid = this->snapshot_validation_enabled
+        ? this->check_snapshot()
+        : (this->ask_level_count > 0 && this->bid_level_count > 0);
 }
 
 void Market::handle(SnapshotEvent& mbp_event) {
     this->last_reception_timestamp = mbp_event.get_reception_timestamp();
     this->last_order_gateway_in_timestamp = mbp_event.get_last_market_timestamp().order_gateway_in_timestamp;
     this->load_snapshot(mbp_event.get_snapshot_data());
-    this->valid = this->check_snapshot();
+    this->valid = this->snapshot_validation_enabled
+        ? this->check_snapshot()
+        : (this->ask_level_count > 0 && this->bid_level_count > 0);
 }
 
 void Market::handle(OrderEvent& mbo_event) {
@@ -484,7 +492,9 @@ void Market::handle(UpdateEvent& update_event) {
     this->last_reception_timestamp = update_event.get_reception_timestamp();
     this->last_order_gateway_in_timestamp = update_event.get_last_market_timestamp().order_gateway_in_timestamp;
     this->update(update_event.get_update().level, update_event.get_update().side, update_event.get_update().action);
-    this->valid = this->check_snapshot();
+    this->valid = this->snapshot_validation_enabled
+        ? this->check_snapshot()
+        : (this->ask_level_count > 0 && this->bid_level_count > 0);
 }
 
 void Market::handle(UpdateBatchEvent& update_batch_event) {
@@ -505,7 +515,9 @@ void Market::handle(UpdateBatchEvent& update_batch_event) {
     }
 
     this->trim_to_depth();
-    this->valid = this->check_snapshot();
+    this->valid = this->snapshot_validation_enabled
+        ? this->check_snapshot()
+        : (this->ask_level_count > 0 && this->bid_level_count > 0);
 }
 
 void Market::trim_to_depth() {

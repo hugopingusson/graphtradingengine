@@ -114,7 +114,7 @@ MarketConsumer::MarketConsumer(const string& instrument,
 bool MarketConsumer::update() {
     const bool was_valid = this->valid;
 
-    if (!this->market_parent || !this->market_parent->is_valid()) {
+    if (!this->market_parent->is_valid()) {
         this->valid = false;
         return was_valid;
     }

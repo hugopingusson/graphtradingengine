@@ -24,13 +24,8 @@ bool Mid::recompute() {
     const double last_value = this->value;
 
     auto* market = this->market_parent;
-    if (!market) {
-        this->value = std::nan("");
-        this->valid = false;
-    } else {
-        this->value = market->mid();
-        this->valid = !std::isnan(this->value);
-    }
+    this->value = market->mid();
+    this->valid = !std::isnan(this->value);
 
     if (this->valid != was_valid) {
         return true;
@@ -60,13 +55,8 @@ bool Bary::recompute() {
     const double last_value = this->value;
 
     auto* market = this->market_parent;
-    if (!market) {
-        this->value = std::nan("");
-        this->valid = false;
-    } else {
-        this->value = market->bary();
-        this->valid = !std::isnan(this->value);
-    }
+    this->value = market->bary();
+    this->valid = !std::isnan(this->value);
 
     if (this->valid != was_valid) {
         return true;
@@ -110,13 +100,6 @@ bool Vwap::recompute() {
     };
 
     auto* market = this->market_parent;
-    if (!market) {
-        this->ask_vwap = std::nan("");
-        this->bid_vwap = std::nan("");
-        this->value = std::nan("");
-        this->valid = false;
-        return finish();
-    }
 
     const std::size_t ask_levels = market->get_ask_level_count();
     const std::size_t bid_levels = market->get_bid_level_count();
@@ -211,21 +194,16 @@ bool TopOfBookImbalance::recompute() {
     const double last_value = this->value;
 
     auto* market = this->market_parent;
-    if (!market) {
+    const double best_bid_size = market->get_best_bid_size();
+    const double best_ask_size = market->get_best_ask_size();
+    const double denom = best_bid_size + best_ask_size;
+
+    if (!std::isfinite(best_bid_size) || !std::isfinite(best_ask_size) || denom <= 0.0) {
         this->value = std::nan("");
         this->valid = false;
     } else {
-        const double best_bid_size = market->get_best_bid_size();
-        const double best_ask_size = market->get_best_ask_size();
-        const double denom = best_bid_size + best_ask_size;
-
-        if (!std::isfinite(best_bid_size) || !std::isfinite(best_ask_size) || denom <= 0.0) {
-            this->value = std::nan("");
-            this->valid = false;
-        } else {
-            this->value = (best_bid_size - best_ask_size) / denom;
-            this->valid = std::isfinite(this->value);
-        }
+        this->value = (best_bid_size - best_ask_size) / denom;
+        this->valid = std::isfinite(this->value);
     }
 
     if (this->valid != was_valid) {

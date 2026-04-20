@@ -261,27 +261,21 @@ void Graph::resolve_update_path() {
 
 
 void Graph::update(const int& source_id) {
-    auto source_children_it = this->adjacency_map.find(source_id);
-    if (source_children_it != this->adjacency_map.end()) {
-        for (const int child_id : source_children_it->second) {
-            auto consumer_it = this->consumer_container.find(child_id);
-            if (consumer_it != this->consumer_container.end() && consumer_it->second) {
-                consumer_it->second->mark_dirty();
-            }
-        }
+    for (const int child_id : this->adjacency_map[source_id]) {
+        this->consumer_container[child_id]->mark_dirty();
     }
 
-    for (int& node_id:this->update_path[source_id]) {
-        if (this->consumer_container[node_id]->is_dirty()) {
-            if (this->consumer_container[node_id]->update()) {
-                for (auto consumer_id: adjacency_map[node_id]) {
-                    consumer_container[consumer_id]->mark_dirty();
+    for (const int node_id : this->update_path[source_id]) {
+        Consumer* consumer = this->consumer_container[node_id];
+        if (consumer->is_dirty()) {
+            if (consumer->update()) {
+                for (const int consumer_id : this->adjacency_map[node_id]) {
+                    this->consumer_container[consumer_id]->mark_dirty();
                 }
             }
-            this->consumer_container[node_id]->clear_dirty();
+            consumer->clear_dirty();
         }
     }
 }
-
 
 

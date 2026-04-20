@@ -86,6 +86,7 @@ class Market:public virtual Producer {
     std::size_t bid_level_count;
     int depth;
     double tick_value;
+    bool snapshot_validation_enabled;
 };
 
 
