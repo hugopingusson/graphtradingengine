@@ -16,7 +16,7 @@ Mid::Mid(const string& instrument, const string& exchange)
     this->name = exchange.empty()
         ? fmt::format("Mid({})", instrument)
         : fmt::format("Mid({}@{})", instrument, exchange);
-    this->mark_dirty();
+    this->mark_scheduled();
 }
 
 bool Mid::recompute() {
@@ -47,7 +47,7 @@ Bary::Bary(const string& instrument, const string& exchange)
     this->name = exchange.empty()
         ? fmt::format("Bary({})", instrument)
         : fmt::format("Bary({}@{})", instrument, exchange);
-    this->mark_dirty();
+    this->mark_scheduled();
 }
 
 bool Bary::recompute() {
@@ -82,7 +82,7 @@ Vwap::Vwap(const string& instrument, const string& exchange, double const& size)
     this->name = exchange.empty()
         ? fmt::format("Vwap({};size={})", instrument, size)
         : fmt::format("Vwap({}@{};size={})", instrument, exchange, size);
-    this->mark_dirty();
+    this->mark_scheduled();
 }
 
 bool Vwap::recompute() {
@@ -186,7 +186,7 @@ TopOfBookImbalance::TopOfBookImbalance(const string& instrument, const string& e
     this->name = exchange.empty()
         ? fmt::format("TopOfBookImbalance({})", instrument)
         : fmt::format("TopOfBookImbalance({}@{})", instrument, exchange);
-    this->mark_dirty();
+    this->mark_scheduled();
 }
 
 bool TopOfBookImbalance::recompute() {

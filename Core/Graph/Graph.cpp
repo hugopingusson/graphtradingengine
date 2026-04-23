@@ -301,21 +301,42 @@ void Graph::resolve_update_path() {
 
 
 void Graph::update(const int& source_id) {
+    auto producer_it = this->producer_container.find(source_id);
+    if (producer_it == this->producer_container.end()) {
+        throw std::runtime_error(fmt::format(
+            "Graph::update unknown source_id={} in producer container",
+            source_id
+        ));
+    }
+
+    Producer* producer = producer_it->second.get();
+    if (!producer->is_dirty()) {
+        return;
+    }
+
     for (const int child_id : this->adjacency_map[source_id]) {
-        this->consumer_container[child_id]->mark_dirty();
+        this->consumer_container[child_id]->mark_scheduled();
     }
 
     for (const int node_id : this->update_path[source_id]) {
         Consumer* consumer = this->consumer_container[node_id];
-        if (consumer->is_dirty()) {
-            if (consumer->update()) {
+        if (consumer->is_scheduled()) {
+            const bool changed = consumer->update();
+            consumer->clear_scheduled();
+            if (changed) {
+                consumer->mark_dirty();
                 for (const int consumer_id : this->adjacency_map[node_id]) {
-                    this->consumer_container[consumer_id]->mark_dirty();
+                    this->consumer_container[consumer_id]->mark_scheduled();
                 }
             }
-            consumer->clear_dirty();
         }
     }
+
+    for (const int node_id : this->update_path[source_id]) {
+        Consumer* consumer = this->consumer_container[node_id];
+        consumer->clear_dirty();
+    }
+    producer->clear_dirty();
 }
 
 void Graph::ingest_event(Event& event) {
@@ -328,6 +349,7 @@ void Graph::ingest_event(Event& event) {
         ));
     }
 
+    producer_it->second->clear_dirty();
     producer_it->second->on_event(&event);
     this->update(source_id);
 }

@@ -410,6 +410,12 @@ void Market::on_event(Event* event) {
     if (!event) {
         return;
     }
+
+    this->clear_dirty();
+    if (dynamic_cast<MarketEvent*>(event) != nullptr) {
+        this->mark_dirty();
+    }
+
     event->dispatchTo(*this);
 }
 
