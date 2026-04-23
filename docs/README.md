@@ -20,6 +20,7 @@ For a first pass:
 8. `data/storage-and-converters.md`
 9. `data/configuration.md`
 10. `development/extension-playbook.md`
+11. `reference/README.md` (full folder/class index)
 
 For LLM ingestion first:
 1. `llm/context.yaml`
@@ -30,12 +31,11 @@ For LLM ingestion first:
 
 Main modules:
 - `Core/Graph`: `Event`, `Graph`
-- `Core/Node/Base`: base node classes, `MarketOrderBook`, `HeartBeat`
-- `Core/Node/Signals`: order book signals and `Print`
+- `Core/Node/Base`: base node classes, `Market`, `HeartBeat`
+- `Core/Node/Signals`: order book signals (`Mid`, `Bary`, `Vwap`, imbalance)
 - `Core/Streamer`: backtest and live streamers
 - `Core/Engine`: `BacktestEngine`, `LiveEngine`
 - `Data/DataStructure`: in-memory and on-disk message structs
 - `Data/DataReader`: parquet to bin converters
 - `Helper`: time, db routing, futures roll, config (`Saphir`)
 - `Logger`: async file logger wrapper
-

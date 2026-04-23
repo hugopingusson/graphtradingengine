@@ -14,12 +14,16 @@ int main() {
     vwap.connect(graph);
 
 
-    BacktestEngine backtest_engine(&logger,&graph);
+    // BacktestEngine backtest_engine(&logger,&graph);
+    LiveEngine live_engine(&logger,&graph);
 
-    backtest_engine.run(
-        Timestamp(Date(2023,06,25),Time(7,00,00)),
-        Timestamp(Date(2023,06,25),Time(23,00,00))
-        );
+    live_engine.run();
+
+
+    // backtest_engine.run(
+        // Timestamp(Date(2023,06,25),Time(7,00,00)),
+        // Timestamp(Date(2023,06,25),Time(23,00,00))
+        // );
 
 
 
