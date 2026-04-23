@@ -95,8 +95,8 @@ public:
     map<size_t, BacktestStreamer*>& get_streamers();
     const map<size_t, BacktestStreamer*>& get_streamers() const;
 
-    void register_source(Producer* source_node);
-    void register_market_source(Market* market);
+    void register_source(const Producer* source_node);
+    void register_market_source(const Market* market);
 
     void route_and_set_streamers(const Timestamp& start,const Timestamp& end);
 

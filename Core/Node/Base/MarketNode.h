@@ -24,8 +24,8 @@ class Market:public virtual Producer {
     ~Market() override = default;
     Market(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
 
-    string get_instrument();
-    string get_exchange();
+    const string& get_instrument() const;
+    const string& get_exchange() const;
 
     double get_best_ask_price() const;
     double get_best_bid_price() const;
@@ -37,8 +37,8 @@ class Market:public virtual Producer {
     bool match(Order order);
     void update(BookLevel level,Side side,Action action);
 
-    int get_depth();
-    double get_tick_value();
+    int get_depth() const;
+    double get_tick_value() const;
 
     bool check_snapshot();
     bool check_staleness(HeartBeatEvent& hb);

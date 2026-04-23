@@ -55,19 +55,19 @@ Market::Market(const string& instrument, const string& exchange, const int& dept
     this->trim_to_depth();
 }
 
-string Market::get_instrument() {
+const string& Market::get_instrument() const {
     return this->instrument;
 }
 
-string Market::get_exchange() {
+const string& Market::get_exchange() const {
     return this->exchange;
 }
 
-double Market::get_tick_value() {
+double Market::get_tick_value() const {
     return this->tick_value;
 }
 
-int Market::get_depth() {
+int Market::get_depth() const {
     return this->depth;
 }
 

@@ -155,8 +155,7 @@ void MarketByPriceBacktestStreamer::process_current(Graph* graph) {
         this->current_listener
     );
 
-    graph->get_producer_container().find(this->order_book_source_node_id)->second->on_event(&event);
-    graph->update(this->order_book_source_node_id);
+    graph->ingest_event(event);
 }
 
 MarketByPriceMessage MarketByPriceBacktestStreamer::get_current_message() const {
@@ -189,7 +188,7 @@ const map<size_t,BacktestStreamer*>& BackTestStreamerContainer::get_streamers() 
     return this->streamers;
 }
 
-void BackTestStreamerContainer::register_source(Producer* source_node) {
+void BackTestStreamerContainer::register_source(const Producer* source_node) {
     if (!source_node) {
         throw std::runtime_error("Error in register_source: received null source node");
     }
@@ -198,7 +197,7 @@ void BackTestStreamerContainer::register_source(Producer* source_node) {
         throw std::runtime_error(fmt::format("Error in register_source,cannot register source node = {}, the node is not attached to a graph",source_node->get_name()));
     }
 
-    if (auto* market = dynamic_cast<Market*>(source_node)) {
+    if (auto* market = dynamic_cast<const Market*>(source_node)) {
         this->register_market_source(market);
         return;
     }
@@ -206,7 +205,7 @@ void BackTestStreamerContainer::register_source(Producer* source_node) {
     throw std::runtime_error(fmt::format("Error in register_source source = {} cannot be registered",source_node->get_name()));
 }
 
-void BackTestStreamerContainer::register_market_source(Market* market) {
+void BackTestStreamerContainer::register_market_source(const Market* market) {
     for (auto& streamer : streamers) {
         auto* market_streamer = dynamic_cast<MarketStreamer*>(streamer.second);
         if (!market_streamer) {

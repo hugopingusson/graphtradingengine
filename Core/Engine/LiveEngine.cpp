@@ -69,7 +69,7 @@ LiveStreamer* LiveEngine::get_streamer(const size_t& streamer_id) const {
     return it->second.get();
 }
 
-void LiveEngine::register_source(Producer* source_node) {
+void LiveEngine::register_source(const Producer* source_node) {
     if (!source_node) {
         throw std::runtime_error("LiveEngine::register_source received null source node");
     }
@@ -80,7 +80,7 @@ void LiveEngine::register_source(Producer* source_node) {
         ));
     }
 
-    if (auto* market = dynamic_cast<Market*>(source_node)) {
+    if (auto* market = dynamic_cast<const Market*>(source_node)) {
         this->register_market_source(market);
         return;
     }
@@ -91,7 +91,7 @@ void LiveEngine::register_source(Producer* source_node) {
     ));
 }
 
-void LiveEngine::register_market_source(Market* market) {
+void LiveEngine::register_market_source(const Market* market) {
     if (!market) {
         throw std::runtime_error("LiveEngine::register_market_source received null market");
     }
@@ -189,16 +189,16 @@ void LiveEngine::build_streamer_container() {
     if (!this->graph) {
         throw std::runtime_error("LiveEngine::build_streamer_container graph is null");
     }
-    if (this->graph->get_producer_container().empty()) {
+    if (!this->graph->has_producers()) {
         if (this->logger) {
             this->logger->log_error("LiveEngine", "Cannot build live streamers: producer container is empty");
         }
         throw std::runtime_error("LiveEngine::build_streamer_container producer container is empty");
     }
 
-    for (const auto& source : this->graph->get_producer_container()) {
-        this->register_source(source.second);
-    }
+    this->graph->for_each_producer([this](const int /*source_id*/, const Producer* source) {
+        this->register_source(source);
+    });
 }
 
 void LiveEngine::initialize() {
@@ -374,8 +374,8 @@ void LiveEngine::run_consumer_loop() {
 }
 
 void LiveEngine::process_event(LiveStreamer::EventPtr event) {
-    const int source_id = event->get_source_id_trigger();
-    Producer* producer = this->graph->get_producer_container().at(source_id);
-    producer->on_event(event.get());
-    this->graph->update(source_id);
+    if (!event) {
+        return;
+    }
+    this->graph->ingest_event(*event);
 }

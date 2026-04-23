@@ -21,13 +21,13 @@ BackTestStreamerContainer BacktestEngine::get_streamer_container() {
 }
 
 void BacktestEngine::build_streamer_container() {
-    if (this->graph->get_producer_container().empty()) {
+    if (!this->graph->has_producers()) {
         this->logger->log_error("BacktestEngine","Cannot build streamer container, source container is empty");
         throw std::runtime_error("Error in BacktestEngine, cannot build streamer container, source container is empty");
     }
-    for (auto source : this->graph->get_producer_container()) {
-        this->streamer_container.register_source(source.second);
-    }
+    this->graph->for_each_producer([this](const int /*source_id*/, const Producer* source) {
+        this->streamer_container.register_source(source);
+    });
 
 
 
@@ -65,6 +65,7 @@ void BacktestEngine::run(const Timestamp& start, const Timestamp& end){
 
 
     auto& streamers = this->streamer_container.get_streamers();
+    const int64_t end_timestamp = end.unixtime();
 
     for (const auto& streamer : streamers) {
         if (streamer.second && streamer.second->is_good()) {
@@ -74,6 +75,9 @@ void BacktestEngine::run(const Timestamp& start, const Timestamp& end){
     cout<<"BackestEngine running..."<<endl;
     while (!min_heap.empty()) {
         const HeapItem smallest = min_heap.top();
+        if (smallest.row > end_timestamp) {
+            break;
+        }
         min_heap.pop();
         const size_t id = smallest.file_id;
 
@@ -93,7 +97,5 @@ void BacktestEngine::run(const Timestamp& start, const Timestamp& end){
 
     cout<<"BacktestEngine end"<<endl;
 }
-
-
 
 

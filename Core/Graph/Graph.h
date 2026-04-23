@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "../Node/Base/MarketNode.h"
@@ -26,18 +27,25 @@ class Graph {
     Logger* get_logger();
     map<int,vector<int>> get_adjacency_map();
     map<int,Consumer*> get_consumer_container();
-    const map<int,Producer*>& get_producer_container() const;
     map<int,Node*> get_sink_container();
     map<int,vector<int>> get_update_path();
 
+    template <typename Callback>
+    void for_each_producer(Callback&& callback) const {
+        for (const auto& producer_entry : this->producer_container) {
+            callback(producer_entry.first, static_cast<const Producer*>(producer_entry.second.get()));
+        }
+    }
+
     bool empty() const;
-    int get_node_id(Node* node) const;
+    bool has_producers() const;
+    int get_node_id(const Node* node) const;
     ///////////////////////////////////// GRAPH CONSTRUCTION LOGIC //////////////////////////
 
 
-    bool checked_in(Node* node);
+    bool checked_in(const Node* node);
 
-    void add_producer(Producer* source_node);
+    Market* ensure_market(const string& instrument, const string& exchange);
     void add_edge(Node* publisher,Consumer* subscriber);
     void resolve_output_nodes();
     void resolve_update_path();
@@ -46,9 +54,12 @@ class Graph {
     ///////////////////////////////////// GRAPH RUNNING LOGIC //////////////////////////
 
     void update(const int& source_id);
+    void ingest_event(Event& event);
 
 
-protected:
+private:
+
+    Producer* add_producer(unique_ptr<Producer> source_node);
 
     int64_t sequence_number;
     int64_t last_in_streamer_timestamp;
@@ -61,7 +72,7 @@ protected:
 
     map<int,vector<int>> adjacency_map;
     map<int,Consumer*> consumer_container;
-    map<int,Producer*> producer_container;
+    map<int,unique_ptr<Producer>> producer_container;
     map<int,Node*> sink_container;
     map<int,vector<int>> update_path;
 };

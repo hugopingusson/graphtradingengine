@@ -3,7 +3,6 @@
 #include <stdexcept>
 
 #include "../../Graph/Graph.h"
-#include "../../../Helper/SaphirManager.h"
 
 Node::Node() {
     sequence_number = int64_t();
@@ -127,39 +126,7 @@ Market* MarketConsumer::connect(Graph& graph) {
         throw std::runtime_error("MarketConsumer::connect cannot connect without instrument");
     }
 
-    Market* selected_market = nullptr;
-    for (const auto& producer_entry : graph.get_producer_container()) {
-        auto* market = dynamic_cast<Market*>(producer_entry.second);
-        if (!market) {
-            continue;
-        }
-        if (market->get_instrument() != this->instrument) {
-            continue;
-        }
-        if (!this->exchange.empty() && market->get_exchange() != this->exchange) {
-            continue;
-        }
-        selected_market = market;
-        break;
-    }
-
-    if (!selected_market) {
-        if (this->exchange.empty()) {
-            throw std::runtime_error(
-                "MarketConsumer::connect requires a non-empty exchange to create a Market producer"
-            );
-        }
-
-        const SaphirManager saphir;
-        const double tick_value = saphir.get_market_tick_value(this->exchange, this->instrument);
-        selected_market = new Market(
-            this->instrument,
-            this->exchange,
-            static_cast<int>(kBookLevels),
-            tick_value
-        );
-        graph.add_producer(selected_market);
-    }
+    Market* selected_market = graph.ensure_market(this->instrument, this->exchange);
 
     this->market_parent = selected_market;
     this->instrument = selected_market->get_instrument();

@@ -35,8 +35,8 @@ public:
     bool is_running() const;
 
 private:
-    void register_source(Producer* source_node);
-    void register_market_source(Market* market);
+    void register_source(const Producer* source_node);
+    void register_market_source(const Market* market);
 
     void run_consumer_loop();
     void process_event(LiveStreamer::EventPtr event);
