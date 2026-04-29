@@ -24,7 +24,6 @@ add_executable(GraphTradingEngine
         main.cpp
         Helper/FutureHelper.cpp
         Helper/TimeHelper.cpp
-        Helper/ToolBox.cpp
         Helper/DataBaseHelper.cpp
         Helper/SaphirManager.cpp
         Logger/Logger.cpp
@@ -32,6 +31,9 @@ add_executable(GraphTradingEngine
         Core/Graph/Graph.cpp
         Core/Node/Base/Node.cpp
         Core/Node/Base/MarketNode.cpp
+        Core/Node/Quote/Quote.cpp
+        Core/Node/Quote/Vwap.cpp
+        Core/Node/Signals/Base.cpp
         Core/Node/Signals/OrderBookSignal.cpp
         Core/Streamer/Streamer.cpp
         Core/Streamer/LiveStreamer.cpp
@@ -42,8 +44,14 @@ add_executable(GraphTradingEngine
         Core/Engine/BacktestEngine.cpp
         Core/Engine/LiveEngine.cpp
         Helper/Configuration.h
+        Core/Node/Signals/Base.h
+        Core/Node/Quote/Quote.h
+         Core/Node/Signals/OFI.cpp
+         Core/Node/Signals/OFI.h
+         Component/Aggregation/PointWindow.cpp
+         Component/Aggregation/TimeWindow.cpp
 
-        # Add here the .cpp files effectively used by main:
+         # Add here the .cpp files effectively used by main:
         # Core/Node/OrderBook/MarketOrderBook.cpp
         # Core/Node/Trades/MarketTrade.cpp
         # Core/Node/Signals/Mid.cpp
@@ -51,7 +59,7 @@ add_executable(GraphTradingEngine
         # Core/Node/Signals/Skew.cpp
 )
 
-target_include_directories(GraphTradingEngine PRIVATE ${Boost_INCLUDE_DIRS})
+target_include_directories(GraphTradingEngine PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR})
 
 # Use fmt in header-only mode to avoid binary-link issues and fmt::v6 mismatches
 target_compile_definitions(GraphTradingEngine PRIVATE FMT_HEADER_ONLY)

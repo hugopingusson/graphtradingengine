@@ -34,29 +34,6 @@ class Bary:public MarketConsumer {
     protected:
     double value;
 };
-
-
-
-class Vwap:public MarketConsumer {
-    public:
-    Vwap();
-    ~Vwap() override = default;
-    explicit Vwap(const string& instrument, const string& exchange, double const& size);
-
-    bool recompute() override;
-    [[nodiscard]] double get_value() const;
-
-    double get_ask_vwap() const;
-    double get_bid_vwap() const;
-
-    protected:
-    double value;
-    double size;
-    double ask_vwap;
-    double bid_vwap;
-
-};
-
 class TopOfBookImbalance : public MarketConsumer {
 public:
     TopOfBookImbalance();

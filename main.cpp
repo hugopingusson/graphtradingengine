@@ -1,7 +1,7 @@
 #include "Core/Engine/BacktestEngine.h"
 #include "Core/Engine/LiveEngine.h"
 #include "Core/Graph/Graph.h"
-#include "Core/Node/Signals/OrderBookSignal.h"
+#include "Core/Node/Quote/Vwap.h"
 #include "Helper/SaphirManager.h"
 #include "Logger/Logger.h"
 
