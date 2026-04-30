@@ -34,6 +34,7 @@ add_executable(GraphTradingEngine
         Core/Node/Quote/Quote.cpp
         Core/Node/Quote/Vwap.cpp
         Core/Node/Signals/Base.cpp
+        Core/Node/Signals/SignalCollector.cpp
         Core/Node/Signals/OrderBookSignal.cpp
         Core/Streamer/Streamer.cpp
         Core/Streamer/LiveStreamer.cpp
@@ -43,15 +44,17 @@ add_executable(GraphTradingEngine
         Core/Streamer/OkxLiveOrderBookStreamer.cpp
         Core/Engine/BacktestEngine.cpp
         Core/Engine/LiveEngine.cpp
+        Data/DataStructure/Ladder.cpp
         Helper/Configuration.h
         Core/Node/Signals/Base.h
+        Core/Node/Signals/SignalCollector.h
         Core/Node/Quote/Quote.h
-         Core/Node/Signals/OFI.cpp
-         Core/Node/Signals/OFI.h
-         Component/Aggregation/PointWindow.cpp
-         Component/Aggregation/TimeWindow.cpp
+        Core/Node/Signals/OFI.cpp
+        Core/Node/Signals/OFI.h
+        Component/Aggregation/PointWindow.cpp
+        Component/Aggregation/TimeWindow.cpp
 
-         # Add here the .cpp files effectively used by main:
+        # Add here the .cpp files effectively used by main:
         # Core/Node/OrderBook/MarketOrderBook.cpp
         # Core/Node/Trades/MarketTrade.cpp
         # Core/Node/Signals/Mid.cpp

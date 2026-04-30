@@ -21,6 +21,13 @@
 
 inline constexpr std::size_t kBookLevels = 25;
 
+struct BookLevel {
+    double price{};
+    double size{};
+    double amount{};
+    int count{};
+};
+
 enum class Action : std::int32_t { ADD=0, CANCEL=1, MODIFY=2, TRADE=3 };
 // enum class Update : std::int32_t { INSERT=0, DELETE=1, UPDATE=2 };
 enum class Side   : std::int32_t { BID=0, ASK=1, NEUTRAL=2 };
@@ -41,15 +48,6 @@ struct SnapshotData{
     double ask_price[kBookLevels];
     double ask_size[kBookLevels];
     std::int32_t ask_count[kBookLevels];
-};
-
-
-// Order book level representation
-struct BookLevel {
-    double price{};
-    double size{};
-    double amount{};
-    int    count{}; // number of orders at this level (optional)
 };
 
 // Sorted ladders (bid desc, ask asc)

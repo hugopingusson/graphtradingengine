@@ -11,6 +11,7 @@
 
 #include "../../Graph/Event.h"
 #include "../../../Data/DataStructure/DataStructure.h"
+#include "../../../Data/DataStructure/Ladder.h"
 #include "Node.h"
 
 
@@ -33,6 +34,7 @@ class Market:public virtual Producer {
     double get_best_bid_size() const;
     std::size_t get_ask_level_count() const;
     std::size_t get_bid_level_count() const;
+    std::size_t get_effective_depth() const;
 
     bool match(Order order);
     void update(BookLevel level,Side side,Action action);
@@ -80,10 +82,8 @@ class Market:public virtual Producer {
 
     string instrument;
     string exchange;
-    std::array<BookLevel, kBookLevels> ask_levels;
-    std::array<BookLevel, kBookLevels> bid_levels;
-    std::size_t ask_level_count;
-    std::size_t bid_level_count;
+    Ladder ask_ladder;
+    Ladder bid_ladder;
     int depth;
     double tick_value;
     bool snapshot_validation_enabled;

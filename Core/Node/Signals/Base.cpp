@@ -9,7 +9,7 @@
 #include <limits>
 #include <stdexcept>
 
-#include "../../Graph/Graph.h"
+#include "../Base/MarketNode.h"
 
 namespace {
 bool are_equal_with_nan(const double& lhs, const double& rhs) {
@@ -24,40 +24,36 @@ double quiet_nan() {
 }
 }
 
-Signal::Signal()
-    : Consumer(),
-      values(),
+SignalSlots::SignalSlots()
+    : values(),
       active_mask(),
-      valid_mask() {}
+      valid_mask(),
+      slots_valid(true) {}
 
-Signal::Signal(const string& name,
-               const size_t& slot_count)
-    : Node(),
-      Consumer(),
-      values(),
+SignalSlots::SignalSlots(const size_t& slot_count)
+    : values(),
       active_mask(),
-      valid_mask() {
-    this->name = name;
+      valid_mask(),
+      slots_valid(true) {
     this->values.assign(slot_count, quiet_nan());
-    this->active_mask.assign(slot_count, 1);
-    this->valid_mask.assign(slot_count, 0);
-    this->valid = (slot_count == 0);
+    this->active_mask.assign(slot_count, 0);
+    this->valid_mask.assign(slot_count, 1);
 }
 
-size_t Signal::get_slot_count() const {
+size_t SignalSlots::get_slot_count() const {
     return this->values.size();
 }
 
-bool Signal::is_active(const size_t& index) const {
+bool SignalSlots::is_active(const size_t& index) const {
     if (index >= this->get_slot_count()) {
-        throw std::out_of_range("Signal::is_active index out of range");
+        throw std::out_of_range("SignalSlots::is_active index out of range");
     }
     return this->active_mask[index] != 0;
 }
 
-void Signal::set_active(const size_t& index, const bool& active) {
+void SignalSlots::set_active(const size_t& index, const bool& active) {
     if (index >= this->get_slot_count()) {
-        throw std::out_of_range("Signal::set_active index out of range");
+        throw std::out_of_range("SignalSlots::set_active index out of range");
     }
 
     this->active_mask[index] = active ? 1 : 0;
@@ -69,53 +65,74 @@ void Signal::set_active(const size_t& index, const bool& active) {
         this->valid_mask[index] = 0;
     }
 
-    this->refresh_global_validity();
-    this->mark_scheduled();
+    this->refresh_global_slot_validity();
 }
 
-const vector<double>& Signal::get_values() const {
+void SignalSlots::active_all() {
+    for (size_t index = 0; index < this->get_slot_count(); ++index) {
+        this->active_mask[index] = 1;
+        this->values[index] = quiet_nan();
+        this->valid_mask[index] = 0;
+    }
+    this->refresh_global_slot_validity();
+}
+
+void SignalSlots::deactivate_all() {
+    for (size_t index = 0; index < this->get_slot_count(); ++index) {
+        this->active_mask[index] = 0;
+        this->values[index] = quiet_nan();
+        this->valid_mask[index] = 1;
+    }
+    this->refresh_global_slot_validity();
+}
+
+const vector<double>& SignalSlots::get_values() const {
     return this->values;
 }
 
-double Signal::get_value(const size_t& index) const {
+double SignalSlots::get_value(const size_t& index) const {
     if (index >= this->get_slot_count()) {
-        throw std::out_of_range("Signal::get_value index out of range");
+        throw std::out_of_range("SignalSlots::get_value index out of range");
     }
     return this->values[index];
 }
 
-const vector<uint8_t>& Signal::get_active_mask() const {
+const vector<uint8_t>& SignalSlots::get_active_mask() const {
     return this->active_mask;
 }
 
-const vector<uint8_t>& Signal::get_valid_mask() const {
+const vector<uint8_t>& SignalSlots::get_valid_mask() const {
     return this->valid_mask;
 }
 
-bool Signal::is_slot_valid(const size_t& index) const {
+bool SignalSlots::is_slot_valid(const size_t& index) const {
     if (index >= this->get_slot_count()) {
-        throw std::out_of_range("Signal::is_slot_valid index out of range");
+        throw std::out_of_range("SignalSlots::is_slot_valid index out of range");
     }
     return this->valid_mask[index] != 0;
 }
 
-void Signal::set_slot_output(const size_t& index,
-                             const double& value,
-                             const bool& valid) {
+bool SignalSlots::are_slots_valid() const {
+    return this->slots_valid;
+}
+
+void SignalSlots::set_slot_output(const size_t& index,
+                                  const double& value,
+                                  const bool& valid) {
     if (index >= this->get_slot_count()) {
-        throw std::out_of_range("Signal::set_slot_output index out of range");
+        throw std::out_of_range("SignalSlots::set_slot_output index out of range");
     }
     this->values[index] = value;
     this->valid_mask[index] = valid ? 1 : 0;
 }
 
-bool Signal::refresh_global_validity() {
-    const bool previous_validity = this->valid;
+bool SignalSlots::refresh_global_slot_validity() {
+    const bool previous_validity = this->slots_valid;
     bool new_validity = true;
-    for (const uint8_t vector_validity : this->valid_mask) {
-        new_validity = new_validity && (vector_validity != 0);
+    for (const uint8_t slot_validity : this->valid_mask) {
+        new_validity = new_validity && (slot_validity != 0);
     }
-    this->valid = new_validity;
+    this->slots_valid = new_validity;
     return previous_validity != new_validity;
 }
 
@@ -179,14 +196,20 @@ void ParamStorage::set_hyperparameter_vector(const size_t& index,
 }
 
 ParametrizedSignal::ParametrizedSignal()
-    : Signal(),
+    : SignalSlots(),
+      name(),
       param_storage() {}
 
 ParametrizedSignal::ParametrizedSignal(const string& name,
                                        const size_t& hyperparameter_dimension,
                                        const size_t& hyperparameter_vector_count)
-    : Signal(name, hyperparameter_vector_count),
+    : SignalSlots(hyperparameter_vector_count),
+      name(name),
       param_storage(hyperparameter_dimension, hyperparameter_vector_count) {}
+
+const string& ParametrizedSignal::get_name() const {
+    return this->name;
+}
 
 size_t ParametrizedSignal::get_hyperparameter_dimension() const {
     return this->param_storage.get_hyperparameter_dimension();
@@ -210,98 +233,49 @@ void ParametrizedSignal::set_hyperparameter_vector(const size_t& index,
 }
 
 MarketSignal::MarketSignal()
-    : Signal(),
-      market_parent(nullptr),
-      instrument(),
-      exchange() {}
+    : MarketConsumer(),
+      SignalSlots() {}
 
 MarketSignal::MarketSignal(const string& name,
                            const string& instrument,
                            const string& exchange,
                            const size_t& slot_count)
     : Node(),
-      Signal(name, slot_count),
-      market_parent(nullptr),
-      instrument(instrument),
-      exchange(exchange) {}
+      MarketConsumer(instrument, exchange),
+      SignalSlots(slot_count) {
+    this->name = name;
+    this->valid = this->are_slots_valid();
+}
 
-Market* MarketSignal::connect(Graph& graph) {
-    if (this->instrument.empty()) {
-        throw std::runtime_error("MarketSignal::connect cannot connect without instrument");
-    }
-
-    Market* selected_market = graph.ensure_market(this->instrument, this->exchange);
-    this->market_parent = selected_market;
-    this->instrument = selected_market->get_instrument();
-    this->exchange = selected_market->get_exchange();
-
-    graph.add_edge(selected_market, this);
+void MarketSignal::set_active(const size_t& index, const bool& active) {
+    SignalSlots::set_active(index, active);
+    this->valid = this->are_slots_valid();
     this->mark_scheduled();
-    return selected_market;
 }
 
-bool MarketSignal::update() {
-    if (!this->market_parent) {
-        throw std::runtime_error("MarketSignal::update called without connected market parent");
-    }
+void MarketSignal::active_all() {
+    SignalSlots::active_all();
+    this->valid = this->are_slots_valid();
+    this->mark_scheduled();
+}
 
-    const bool parent_valid = this->market_parent->is_valid();
-    bool any_vector_changed = false;
+void MarketSignal::deactivate_all() {
+    SignalSlots::deactivate_all();
+    this->valid = this->are_slots_valid();
+    this->mark_scheduled();
+}
 
+bool MarketSignal::on_parent_invalid() {
     for (size_t index = 0; index < this->get_slot_count(); ++index) {
-        if (!this->is_active(index)) {
-            const double previous_value = this->values[index];
-            const bool previous_validity = this->valid_mask[index] != 0;
-            this->set_slot_output(index, quiet_nan(), true);
-            if (!are_equal_with_nan(previous_value, this->values[index])
-                || previous_validity != (this->valid_mask[index] != 0)) {
-                any_vector_changed = true;
-            }
-            continue;
-        }
-
-        if (!parent_valid) {
-            const double previous_value = this->values[index];
-            const bool previous_validity = this->valid_mask[index] != 0;
+        if (this->is_active(index)) {
             this->set_slot_output(index, quiet_nan(), false);
-            if (!are_equal_with_nan(previous_value, this->values[index])
-                || previous_validity != (this->valid_mask[index] != 0)) {
-                any_vector_changed = true;
-            }
-            continue;
-        }
-
-        double computed_value = quiet_nan();
-        bool computed_valid = this->compute_active_slot(index, computed_value);
-
-        if (!computed_valid || !std::isfinite(computed_value)) {
-            computed_value = quiet_nan();
-            computed_valid = false;
-        }
-
-        const double previous_value = this->values[index];
-        const bool previous_validity = this->valid_mask[index] != 0;
-        this->set_slot_output(index, computed_value, computed_valid);
-        if (!are_equal_with_nan(previous_value, this->values[index])
-            || previous_validity != (this->valid_mask[index] != 0)) {
-            any_vector_changed = true;
         }
     }
 
-    const bool global_validity_changed = this->refresh_global_validity();
-    return any_vector_changed || global_validity_changed;
-}
-
-const string& MarketSignal::get_instrument() const {
-    return this->instrument;
-}
-
-const string& MarketSignal::get_exchange() const {
-    return this->exchange;
-}
-
-Market* MarketSignal::get_market_parent() const {
-    return this->market_parent;
+    this->refresh_global_slot_validity();
+    const bool previous_validity = this->valid;
+    this->valid = this->are_slots_valid();
+    return previous_validity != this->valid;
 }
 
 ParametrizedMarketSignal::ParametrizedMarketSignal()
@@ -337,11 +311,43 @@ void ParametrizedMarketSignal::set_hyperparameter_vector(const size_t& index,
     this->param_storage.set_hyperparameter_vector(index, hyperparameter_vector);
 }
 
-bool ParametrizedMarketSignal::compute_active_slot(const size_t& index,
-                                                   double& out_value) {
-    return this->compute_active_vector(
-        index,
-        this->param_storage.get_hyperparameter_vector_data(index),
-        out_value
-    );
+bool ParametrizedMarketSignal::recompute() {
+    auto update_slot_and_track_change = [&](const size_t& index,
+                                            const double& value,
+                                            const bool& valid) {
+        const double previous_value = this->values[index];
+        const bool previous_validity = this->valid_mask[index] != 0;
+        this->set_slot_output(index, value, valid);
+        return !are_equal_with_nan(previous_value, this->values[index])
+            || previous_validity != (this->valid_mask[index] != 0);
+    };
+
+    bool any_vector_changed = false;
+
+    for (size_t index = 0; index < this->get_slot_count(); ++index) {
+        if (!this->is_active(index)) {
+            any_vector_changed = update_slot_and_track_change(index, quiet_nan(), true) || any_vector_changed;
+            continue;
+        }
+
+        double computed_value = quiet_nan();
+        bool computed_valid = this->compute_active_vector(
+            index,
+            this->param_storage.get_hyperparameter_vector_data(index),
+            computed_value
+        );
+        if (!computed_valid || !std::isfinite(computed_value)) {
+            computed_value = quiet_nan();
+            computed_valid = false;
+        }
+
+        any_vector_changed = update_slot_and_track_change(index, computed_value, computed_valid) || any_vector_changed;
+    }
+
+    const bool slot_validity_changed = this->refresh_global_slot_validity();
+    const bool previous_validity = this->valid;
+    this->valid = this->are_slots_valid();
+    const bool node_validity_changed = previous_validity != this->valid;
+
+    return any_vector_changed || slot_validity_changed || node_validity_changed;
 }

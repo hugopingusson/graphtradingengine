@@ -113,14 +113,21 @@ MarketConsumer::MarketConsumer(const string& instrument,
       exchange(exchange) {}
 
 bool MarketConsumer::update() {
-    const bool was_valid = this->valid;
+    if (!this->market_parent) {
+        throw std::runtime_error("MarketConsumer::update called without connected market parent");
+    }
 
     if (!this->market_parent->is_valid()) {
-        this->valid = false;
-        return was_valid;
+        return this->on_parent_invalid();
     }
 
     return this->recompute();
+}
+
+bool MarketConsumer::on_parent_invalid() {
+    const bool was_valid = this->valid;
+    this->valid = false;
+    return was_valid != this->valid;
 }
 
 Market* MarketConsumer::connect(Graph& graph) {

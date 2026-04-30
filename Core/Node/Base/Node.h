@@ -113,6 +113,7 @@ public:
     [[nodiscard]] Market* get_market_parent() const;
 
 protected:
+    virtual bool on_parent_invalid();
     virtual bool recompute() = 0;
 
     Market* market_parent;

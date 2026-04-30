@@ -7,33 +7,35 @@
 
 #include "../Base/Node.h"
 
-class Signal : public Consumer {
+class SignalSlots {
 public:
-    ~Signal() override = default;
-    Signal();
-    Signal(const string& name,
-           const size_t& slot_count);
+    SignalSlots();
+    explicit SignalSlots(const size_t& slot_count);
 
     [[nodiscard]] size_t get_slot_count() const;
 
     [[nodiscard]] bool is_active(const size_t& index) const;
     void set_active(const size_t& index, const bool& active);
+    void active_all();
+    void deactivate_all();
 
     [[nodiscard]] const vector<double>& get_values() const;
     [[nodiscard]] double get_value(const size_t& index) const;
     [[nodiscard]] const vector<uint8_t>& get_active_mask() const;
     [[nodiscard]] const vector<uint8_t>& get_valid_mask() const;
     [[nodiscard]] bool is_slot_valid(const size_t& index) const;
+    [[nodiscard]] bool are_slots_valid() const;
 
 protected:
     void set_slot_output(const size_t& index,
                          const double& value,
                          const bool& valid);
-    bool refresh_global_validity();
+    bool refresh_global_slot_validity();
 
     vector<double> values;
     vector<uint8_t> active_mask;
     vector<uint8_t> valid_mask;
+    bool slots_valid;
 };
 
 class ParamStorage {
@@ -56,13 +58,15 @@ protected:
     vector<double> hyperparameter_space;
 };
 
-class ParametrizedSignal : public Signal {
+class ParametrizedSignal : public SignalSlots {
 public:
-    ~ParametrizedSignal() override = default;
+    ~ParametrizedSignal() = default;
     ParametrizedSignal();
     ParametrizedSignal(const string& name,
                        const size_t& hyperparameter_dimension,
                        const size_t& hyperparameter_vector_count);
+
+    [[nodiscard]] const string& get_name() const;
 
     [[nodiscard]] size_t get_hyperparameter_dimension() const;
     [[nodiscard]] size_t get_hyperparameter_vector_count() const;
@@ -72,10 +76,11 @@ public:
                                    const vector<double>& hyperparameter_vector);
 
 protected:
+    string name;
     ParamStorage param_storage;
 };
 
-class MarketSignal : public Signal {
+class MarketSignal : public MarketConsumer, public SignalSlots {
 public:
     ~MarketSignal() override = default;
     MarketSignal();
@@ -84,21 +89,17 @@ public:
                  const string& exchange,
                  const size_t& slot_count);
 
-    Market* connect(Graph& graph);
-    bool update() override;
-
-    [[nodiscard]] const string& get_instrument() const;
-    [[nodiscard]] const string& get_exchange() const;
-    [[nodiscard]] Market* get_market_parent() const;
+    void set_active(const size_t& index, const bool& active);
+    void active_all();
+    void deactivate_all();
 
 protected:
-    virtual bool compute_active_slot(const size_t& index,
-                                     double& out_value) = 0;
-
-    Market* market_parent;
-    string instrument;
-    string exchange;
+    bool on_parent_invalid() override;
+    bool recompute() override = 0;
 };
+
+
+
 
 class ParametrizedMarketSignal : public MarketSignal {
 public:
@@ -118,8 +119,7 @@ public:
                                    const vector<double>& hyperparameter_vector);
 
 protected:
-    bool compute_active_slot(const size_t& index,
-                             double& out_value) override;
+    bool recompute() override;
     virtual bool compute_active_vector(const size_t& index,
                                        const double* hyperparameter_vector,
                                        double& out_value) = 0;
