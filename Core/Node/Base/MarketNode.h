@@ -23,7 +23,10 @@ class Market:public virtual Producer {
     public:
     Market();
     ~Market() override = default;
-    Market(const string& instrument,const string& exchange,const int& depth,const double& tick_value);
+    Market(const string& instrument,
+           const string& exchange,
+           const std::size_t& managed_depth,
+           const double& tick_value);
 
     const string& get_instrument() const;
     const string& get_exchange() const;
@@ -34,12 +37,15 @@ class Market:public virtual Producer {
     double get_best_bid_size() const;
     std::size_t get_ask_level_count() const;
     std::size_t get_bid_level_count() const;
+    std::size_t get_observed_ask_depth() const;
+    std::size_t get_observed_bid_depth() const;
+    std::size_t get_observed_depth() const;
     std::size_t get_effective_depth() const;
 
     bool match(Order order);
     void update(BookLevel level,Side side,Action action);
 
-    int get_depth() const;
+    std::size_t get_managed_depth() const;
     double get_tick_value() const;
 
     bool check_snapshot();
@@ -67,7 +73,6 @@ class Market:public virtual Producer {
     double imbalance() const;
 
     protected:
-    void trim_to_depth();
     void reset_ladder();
     void load_snapshot(const SnapshotData& snapshot);
 
@@ -79,13 +84,14 @@ class Market:public virtual Producer {
     void erase_bid_level(const std::size_t& idx);
     void apply_ask_level(const double& price, const double& size, const int& count, const Action& action);
     void apply_bid_level(const double& price, const double& size, const int& count, const Action& action);
+    bool has_required_depth() const;
 
     string instrument;
     string exchange;
     Ladder ask_ladder;
     Ladder bid_ladder;
-    int depth;
-    double tick_value;
+    const std::size_t managed_depth;
+    const double tick_value;
     bool snapshot_validation_enabled;
 };
 

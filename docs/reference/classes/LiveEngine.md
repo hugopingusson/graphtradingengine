@@ -12,6 +12,13 @@ Runs live ingestion and graph updates by consuming events from live streamer rin
 - Start/stop/join streamer threads
 - Merge per-streamer head events by `reception_timestamp`
 - Dispatch events to producer node and trigger `Graph::update(source_id)`
+- Enforce live exchange policy from `SaphirManager::get_supported_live_exchanges()`
+
+## Exchange Policy
+
+- Live exchange support is config-driven via `~/Saphir/LiveEngineConfig.json`.
+- If a market exchange is not listed in `supported_live_exchange`, registration fails fast.
+- Streamer implementations currently exist for: `bitmex`, `binance`, `deribit`, `okx`.
 
 ## Main Methods
 
@@ -19,4 +26,3 @@ Runs live ingestion and graph updates by consuming events from live streamer rin
 - `build_streamer_container()`
 - `run()`, `start()`, `stop()`, `join()`
 - `run_consumer_loop()`
-

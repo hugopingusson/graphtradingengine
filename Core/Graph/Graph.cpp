@@ -162,10 +162,11 @@ Market* Graph::ensure_market(const string& instrument, const string& exchange) {
 
     const SaphirManager saphir;
     const double tick_value = saphir.get_market_tick_value(exchange, instrument);
+    const std::size_t managed_depth = saphir.get_market_depth(exchange);
     auto market = std::make_unique<Market>(
         instrument,
         exchange,
-        static_cast<int>(kBookLevels),
+        managed_depth,
         tick_value
     );
     return dynamic_cast<Market*>(this->add_producer(std::move(market)));

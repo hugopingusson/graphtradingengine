@@ -22,13 +22,17 @@ Important: consumer loop runs in the main/caller thread, not in an internal work
 
 ## Streamer Construction
 
-`register_market_orderbook_source()` dispatches by `market->get_exchange()`:
+`register_market_source()` builds streamers from `market->get_exchange()`:
 - `bitmex` -> `BitmexLiveOrderBookStreamer`
 - `binance` -> `BinanceLiveOrderBookStreamer`
 - `deribit` -> `DeribitLiveOrderBookStreamer`
 - `okx` -> `OkxLiveOrderBookStreamer`
 
 If a streamer for same `(instrument, exchange)` already exists, it is reused and only source id is updated.
+
+Before streamer creation, exchange membership is checked against
+`SaphirManager::get_supported_live_exchanges()` (from `LiveEngineConfig.json`).
+If not listed, startup fails fast with a runtime error.
 
 ## Consumer Loop Ordering
 
@@ -54,4 +58,3 @@ Idle policy:
 - `stop()` sets engine running flag to false and requests stop on each streamer.
 - `join()` waits all streamer threads.
 - `run()` is blocking; external shutdown signal/call is needed for continuous live use.
-

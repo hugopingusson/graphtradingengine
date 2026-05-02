@@ -8,7 +8,7 @@
 int main() {
     Logger logger("MainLogger", "/home/hugo/gte_logs");
     Graph graph(&logger);
-    Vwap vwap("BTCUSDT","binance",100000);
+    Vwap vwap("BTCUSDT","bitmex",100000);
     // Bary bary("BTCUSDT","binance");
 
     vwap.connect(graph);

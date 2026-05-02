@@ -127,6 +127,13 @@ void LiveEngine::register_market_source(const Market* market) {
     });
 
     const SaphirManager saphir;
+    const auto supported_live_exchanges = saphir.get_supported_live_exchanges();
+    if (supported_live_exchanges.find(exchange) == supported_live_exchanges.end()) {
+        throw std::runtime_error(fmt::format(
+            "LiveEngine::register_market_source exchange '{}' is not listed in supported_live_exchange",
+            market->get_exchange()
+        ));
+    }
     const size_t ring_capacity = saphir.get_ring_capacity();
     const size_t max_update_batch_size = saphir.get_max_update_batch_size();
 

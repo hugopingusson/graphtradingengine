@@ -99,8 +99,8 @@ string SaphirManager::get_instrument_config_path() const {
     return (fs::path(this->saphir_root) / "InstrumentConfig.json").string();
 }
 
-string SaphirManager::get_engine_config_path() const {
-    return (fs::path(this->saphir_root) / "EngineConfig.json").string();
+string SaphirManager::get_live_engine_config_path() const {
+    return (fs::path(this->saphir_root) / "LiveEngineConfig.json").string();
 }
 
 string SaphirManager::get_tick_config_path() const {
@@ -111,7 +111,7 @@ void SaphirManager::initialize() const {
     this->ensure_root_exists();
     this->ensure_database_config_exists();
     this->ensure_instrument_config_exists();
-    this->ensure_engine_config_exists();
+    this->ensure_live_engine_config_exists();
     this->ensure_tick_config_exists();
 }
 
@@ -136,6 +136,8 @@ void SaphirManager::ensure_database_config_exists() const {
     databases.put("cme", "/media/hugo/T7/market_data_bin/chi/databento");
     databases.put("binance", "/media/hugo/T7/market_data_bin/nyk/cryptolake");
     databases.put("okx", "/media/hugo/T7/market_data_bin/nyk/cryptolake");
+    databases.put("bitmex", "/media/hugo/T7/market_data_bin/nyk/cryptolake");
+    databases.put("deribit", "/media/hugo/T7/market_data_bin/nyk/cryptolake");
     root.add_child("databases", databases);
 
     boost::property_tree::write_json(config_path.string(), root);
@@ -169,17 +171,54 @@ void SaphirManager::ensure_instrument_config_exists() const {
     boost::property_tree::write_json(config_path.string(), root);
 }
 
-void SaphirManager::ensure_engine_config_exists() const {
-    const fs::path config_path(this->get_engine_config_path());
+void SaphirManager::ensure_live_engine_config_exists() const {
+    const fs::path config_path(this->get_live_engine_config_path());
     if (fs::exists(config_path)) {
         return;
     }
 
     ptree root;
-    root.put("market_depth", 25);
-    root.put("ring_capacity", 16384);
-    root.put("max_update_batch_size", 64);
-    root.put("logger_mode", "live");
+    const fs::path legacy_path(fs::path(this->saphir_root) / "EngineConfig.json");
+    if (fs::exists(legacy_path)) {
+        boost::property_tree::read_json(legacy_path.string(), root);
+    }
+
+    if (!root.get_optional<long long>("market_depth_by_exchange.cme")) {
+        root.put("market_depth_by_exchange.cme", 25);
+    }
+    if (!root.get_optional<long long>("market_depth_by_exchange.binance")) {
+        root.put("market_depth_by_exchange.binance", 25);
+    }
+    if (!root.get_optional<long long>("market_depth_by_exchange.okx")) {
+        root.put("market_depth_by_exchange.okx", 25);
+    }
+    if (!root.get_optional<long long>("market_depth_by_exchange.bitmex")) {
+        root.put("market_depth_by_exchange.bitmex", 25);
+    }
+    if (!root.get_optional<long long>("market_depth_by_exchange.deribit")) {
+        root.put("market_depth_by_exchange.deribit", 25);
+    }
+
+    if (!root.get_optional<long long>("ring_capacity")) {
+        root.put("ring_capacity", 16384);
+    }
+    if (!root.get_optional<long long>("max_update_batch_size")) {
+        root.put("max_update_batch_size", 64);
+    }
+    if (!root.get_optional<string>("logger_mode")) {
+        root.put("logger_mode", "live");
+    }
+
+    if (!root.get_child_optional("supported_live_exchange")) {
+        ptree exchanges;
+        for (const auto* exchange : {"binance", "okx", "bitmex", "deribit"}) {
+            ptree node;
+            node.put("", exchange);
+            exchanges.push_back(std::make_pair("", node));
+        }
+        root.add_child("supported_live_exchange", exchanges);
+    }
+
     boost::property_tree::write_json(config_path.string(), root);
 }
 
@@ -194,18 +233,27 @@ void SaphirManager::ensure_tick_config_exists() const {
     exchanges.add_child("cme", ptree{});
     exchanges.add_child("binance", ptree{});
     exchanges.add_child("okx", ptree{});
+    exchanges.add_child("bitmex", ptree{});
+    exchanges.add_child("deribit", ptree{});
     root.add_child("tick_values", exchanges);
     boost::property_tree::write_json(config_path.string(), root);
 }
 
-string SaphirManager::normalize_exchange(const string& exchange) {
+string SaphirManager::normalize_exchange(const string& exchange) const {
     string normalized = exchange;
     std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](const unsigned char c) {
         return static_cast<char>(std::tolower(c));
     });
 
-    if (normalized != "cme" && normalized != "binance" && normalized != "okx") {
-        throw std::runtime_error(fmt::format("Unsupported exchange '{}'. Allowed: cme, binance, okx", exchange));
+    if (normalized != "cme"
+        && normalized != "binance"
+        && normalized != "okx"
+        && normalized != "bitmex"
+        && normalized != "deribit") {
+        throw std::runtime_error(fmt::format(
+            "Unsupported exchange '{}'. Allowed: cme, binance, okx, bitmex, deribit",
+            exchange
+        ));
     }
     return normalized;
 }
@@ -244,6 +292,8 @@ map<string, string> SaphirManager::get_all_database_roots() const {
     out["cme"] = root.get<string>("databases.cme");
     out["binance"] = root.get<string>("databases.binance");
     out["okx"] = root.get<string>("databases.okx");
+    out["bitmex"] = root.get<string>("databases.bitmex", "");
+    out["deribit"] = root.get<string>("databases.deribit", "");
     return out;
 }
 
@@ -272,17 +322,41 @@ unordered_set<string> SaphirManager::get_all_instruments() const {
     return all;
 }
 
-size_t SaphirManager::get_market_depth() const {
+unordered_set<string> SaphirManager::get_supported_live_exchanges() const {
     this->initialize();
-    const string config_path = this->get_engine_config_path();
+    const string config_path = this->get_live_engine_config_path();
     ptree root;
     boost::property_tree::read_json(config_path, root);
-    return read_positive_unsigned<size_t>(root, "market_depth", config_path);
+
+    const unordered_set<string> configured = read_string_array(root, "supported_live_exchange", config_path);
+    unordered_set<string> supported;
+    for (const auto& exchange : configured) {
+        const string normalized = this->normalize_exchange(exchange);
+        if (normalized == "cme") {
+            throw std::runtime_error(fmt::format(
+                "Exchange '{}' cannot be listed in supported_live_exchange in {}",
+                exchange,
+                config_path
+            ));
+        }
+        supported.insert(normalized);
+    }
+    return supported;
+}
+
+size_t SaphirManager::get_market_depth(const string& exchange) const {
+    this->initialize();
+    const string normalized_exchange = normalize_exchange(exchange);
+    const string config_path = this->get_live_engine_config_path();
+    ptree root;
+    boost::property_tree::read_json(config_path, root);
+    const string key = fmt::format("market_depth_by_exchange.{}", normalized_exchange);
+    return read_positive_unsigned<size_t>(root, key, config_path);
 }
 
 size_t SaphirManager::get_ring_capacity() const {
     this->initialize();
-    const string config_path = this->get_engine_config_path();
+    const string config_path = this->get_live_engine_config_path();
     ptree root;
     boost::property_tree::read_json(config_path, root);
     return read_positive_unsigned<size_t>(root, "ring_capacity", config_path);
@@ -290,7 +364,7 @@ size_t SaphirManager::get_ring_capacity() const {
 
 size_t SaphirManager::get_max_update_batch_size() const {
     this->initialize();
-    const string config_path = this->get_engine_config_path();
+    const string config_path = this->get_live_engine_config_path();
     ptree root;
     boost::property_tree::read_json(config_path, root);
     return read_positive_unsigned<size_t>(root, "max_update_batch_size", config_path);
@@ -328,7 +402,7 @@ double SaphirManager::get_market_tick_value(const string& exchange, const string
 
 string SaphirManager::get_logger_mode() const {
     this->initialize();
-    const string config_path = this->get_engine_config_path();
+    const string config_path = this->get_live_engine_config_path();
     ptree root;
     boost::property_tree::read_json(config_path, root);
     const auto mode_opt = root.get_optional<string>("logger_mode");

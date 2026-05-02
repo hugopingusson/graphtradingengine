@@ -18,13 +18,13 @@ public:
     std::string get_saphir_root() const;
     std::string get_database_config_path() const;
     std::string get_instrument_config_path() const;
-    std::string get_engine_config_path() const;
+    std::string get_live_engine_config_path() const;
     std::string get_tick_config_path() const;
 
     // Ensure root folder and default JSON configs exist.
     void initialize() const;
 
-    // Read configured root path for one exchange (cme, binance, okx).
+    // Read configured root path for one exchange (cme, binance, okx, bitmex, deribit).
     std::string get_database_root(const std::string& exchange) const;
 
     // Update configured root path for one exchange.
@@ -38,8 +38,9 @@ public:
     std::unordered_set<std::string> get_cryptocurrencies_instruments() const;
     std::unordered_set<std::string> get_all_instruments() const;
 
-    // Accessors for EngineConfig.json
-    std::size_t get_market_depth() const;
+    // Accessors for LiveEngineConfig.json
+    std::unordered_set<std::string> get_supported_live_exchanges() const;
+    std::size_t get_market_depth(const std::string& exchange) const;
     std::size_t get_ring_capacity() const;
     std::size_t get_max_update_batch_size() const;
     double get_market_tick_value(const std::string& exchange, const std::string& instrument) const;
@@ -51,9 +52,9 @@ private:
     void ensure_root_exists() const;
     void ensure_database_config_exists() const;
     void ensure_instrument_config_exists() const;
-    void ensure_engine_config_exists() const;
+    void ensure_live_engine_config_exists() const;
     void ensure_tick_config_exists() const;
-    static std::string normalize_exchange(const std::string& exchange);
+    std::string normalize_exchange(const std::string& exchange) const;
 };
 
 #endif //SAPHIRMANAGER_H

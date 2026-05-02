@@ -22,33 +22,31 @@ Market::Market()
       exchange(),
       ask_ladder(),
       bid_ladder(),
-      depth(),
+      managed_depth(1),
       tick_value(),
       snapshot_validation_enabled(false) {}
 
-Market::Market(const string& instrument, const string& exchange, const int& depth, const double& tick_value)
+Market::Market(const string& instrument,
+               const string& exchange,
+               const std::size_t& managed_depth,
+               const double& tick_value)
     : Node(fmt::format("Market(instrument={},exchange={})", instrument, exchange)),
       instrument(instrument),
       exchange(exchange),
       ask_ladder(),
       bid_ladder(),
-      depth(depth),
+      managed_depth(std::min<std::size_t>(kBookLevels, managed_depth)),
       tick_value(tick_value),
       snapshot_validation_enabled(false) {
     const SaphirManager saphir;
-    if (this->depth <= 0) {
-        this->depth = static_cast<int>(saphir.get_market_depth());
-    }
-    if (this->depth <= 0) {
+    if (this->managed_depth == 0) {
         throw std::runtime_error(fmt::format(
-            "Invalid market depth={} for Market(instrument={},exchange={})",
-            this->depth,
+            "Invalid managed_depth=0 for Market(instrument={},exchange={})",
             this->instrument,
             this->exchange
         ));
     }
     this->snapshot_validation_enabled = (saphir.get_logger_mode() == "debug");
-    this->trim_to_depth();
 }
 
 const string& Market::get_instrument() const {
@@ -63,45 +61,62 @@ double Market::get_tick_value() const {
     return this->tick_value;
 }
 
-int Market::get_depth() const {
-    return this->depth;
+std::size_t Market::get_managed_depth() const {
+    return this->managed_depth;
 }
 
 std::size_t Market::get_ask_level_count() const {
-    return this->ask_ladder.count();
+    return this->ask_ladder.effective_depth();
 }
 
 std::size_t Market::get_bid_level_count() const {
-    return this->bid_ladder.count();
+    return this->bid_ladder.effective_depth();
+}
+
+std::size_t Market::get_observed_ask_depth() const {
+    return this->ask_ladder.effective_depth();
+}
+
+std::size_t Market::get_observed_bid_depth() const {
+    return this->bid_ladder.effective_depth();
+}
+
+std::size_t Market::get_observed_depth() const {
+    return std::min(this->get_observed_ask_depth(), this->get_observed_bid_depth());
 }
 
 std::size_t Market::get_effective_depth() const {
-    return Ladder::compute_effective_depth_or_throw(this->ask_ladder, this->bid_ladder, this->name);
+    return this->managed_depth;
+}
+
+bool Market::has_required_depth() const {
+    return this->get_observed_ask_depth() >= this->managed_depth
+        && this->get_observed_bid_depth() >= this->managed_depth;
 }
 
 double Market::ask_price(const std::size_t& i) const {
-    if (i >= this->ask_ladder.count()) {
+    if (i >= this->ask_ladder.effective_depth()) {
         return std::numeric_limits<double>::quiet_NaN();
     }
     return this->ask_ladder[i].price;
 }
 
 double Market::bid_price(const std::size_t& i) const {
-    if (i >= this->bid_ladder.count()) {
+    if (i >= this->bid_ladder.effective_depth()) {
         return std::numeric_limits<double>::quiet_NaN();
     }
     return this->bid_ladder[i].price;
 }
 
 double Market::ask_size(const std::size_t& i) const {
-    if (i >= this->ask_ladder.count()) {
+    if (i >= this->ask_ladder.effective_depth()) {
         return std::numeric_limits<double>::quiet_NaN();
     }
     return this->ask_ladder[i].size;
 }
 
 double Market::bid_size(const std::size_t& i) const {
-    if (i >= this->bid_ladder.count()) {
+    if (i >= this->bid_ladder.effective_depth()) {
         return std::numeric_limits<double>::quiet_NaN();
     }
     return this->bid_ladder[i].size;
@@ -177,7 +192,7 @@ bool Market::check_staleness(HeartBeatEvent& hb) {
 }
 
 int Market::find_ask_index(const double& price) const {
-    for (std::size_t i = 0; i < this->ask_ladder.count(); ++i) {
+    for (std::size_t i = 0; i < this->ask_ladder.effective_depth(); ++i) {
         if (this->ask_ladder[i].price == price) {
             return static_cast<int>(i);
         }
@@ -186,7 +201,7 @@ int Market::find_ask_index(const double& price) const {
 }
 
 int Market::find_bid_index(const double& price) const {
-    for (std::size_t i = 0; i < this->bid_ladder.count(); ++i) {
+    for (std::size_t i = 0; i < this->bid_ladder.effective_depth(); ++i) {
         if (this->bid_ladder[i].price == price) {
             return static_cast<int>(i);
         }
@@ -196,7 +211,7 @@ int Market::find_bid_index(const double& price) const {
 
 std::size_t Market::find_ask_insert_pos(const double& price) const {
     std::size_t pos = 0;
-    while (pos < this->ask_ladder.count() && this->ask_ladder[pos].price < price) {
+    while (pos < this->ask_ladder.effective_depth() && this->ask_ladder[pos].price < price) {
         ++pos;
     }
     return pos;
@@ -204,7 +219,7 @@ std::size_t Market::find_ask_insert_pos(const double& price) const {
 
 std::size_t Market::find_bid_insert_pos(const double& price) const {
     std::size_t pos = 0;
-    while (pos < this->bid_ladder.count() && this->bid_ladder[pos].price > price) {
+    while (pos < this->bid_ladder.effective_depth() && this->bid_ladder[pos].price > price) {
         ++pos;
     }
     return pos;
@@ -220,46 +235,70 @@ void Market::erase_bid_level(const std::size_t& idx) {
 
 void Market::apply_ask_level(const double& price, const double& size, const int& count, const Action& action) {
     const int idx = this->find_ask_index(price);
-    if (action == Action::CANCEL || !is_valid_price_size(price, size)) {
+
+    if (action == Action::CANCEL) {
         if (idx >= 0) {
             this->erase_ask_level(static_cast<std::size_t>(idx));
         }
         return;
     }
 
-    if (idx >= 0) {
+    if (action == Action::MODIFY) {
+        if (idx < 0 || !is_valid_price_size(price, size)) {
+            return;
+        }
         this->ask_ladder[static_cast<std::size_t>(idx)] = BookLevel{price, size, price * size, count};
         return;
     }
 
-    const std::size_t pos = this->find_ask_insert_pos(price);
-    if (pos >= kBookLevels) {
+    if (action == Action::ADD) {
+        if (!is_valid_price_size(price, size)) {
+            return;
+        }
+
+        if (idx >= 0) {
+            this->ask_ladder[static_cast<std::size_t>(idx)] = BookLevel{price, size, price * size, count};
+            return;
+        }
+
+        const std::size_t pos = this->find_ask_insert_pos(price);
+        this->ask_ladder.insert_at(pos, BookLevel{price, size, price * size, count});
         return;
     }
-
-    this->ask_ladder.insert_at(pos, BookLevel{price, size, price * size, count});
 }
 
 void Market::apply_bid_level(const double& price, const double& size, const int& count, const Action& action) {
     const int idx = this->find_bid_index(price);
-    if (action == Action::CANCEL || !is_valid_price_size(price, size)) {
+
+    if (action == Action::CANCEL) {
         if (idx >= 0) {
             this->erase_bid_level(static_cast<std::size_t>(idx));
         }
         return;
     }
 
-    if (idx >= 0) {
+    if (action == Action::MODIFY) {
+        if (idx < 0 || !is_valid_price_size(price, size)) {
+            return;
+        }
         this->bid_ladder[static_cast<std::size_t>(idx)] = BookLevel{price, size, price * size, count};
         return;
     }
 
-    const std::size_t pos = this->find_bid_insert_pos(price);
-    if (pos >= kBookLevels) {
+    if (action == Action::ADD) {
+        if (!is_valid_price_size(price, size)) {
+            return;
+        }
+
+        if (idx >= 0) {
+            this->bid_ladder[static_cast<std::size_t>(idx)] = BookLevel{price, size, price * size, count};
+            return;
+        }
+
+        const std::size_t pos = this->find_bid_insert_pos(price);
+        this->bid_ladder.insert_at(pos, BookLevel{price, size, price * size, count});
         return;
     }
-
-    this->bid_ladder.insert_at(pos, BookLevel{price, size, price * size, count});
 }
 
 void Market::update(BookLevel level, Side side, Action action) {
@@ -268,7 +307,6 @@ void Market::update(BookLevel level, Side side, Action action) {
     } else if (side == Side::ASK) {
         this->apply_ask_level(level.price, level.size, level.count, action);
     }
-    this->trim_to_depth();
 }
 
 bool Market::match(Order order) {
@@ -289,7 +327,6 @@ bool Market::match(Order order) {
             } else {
                 this->apply_ask_level(order.price, order.size, 0, Action::ADD);
             }
-            this->trim_to_depth();
             return true;
         }
         if (order.side == Side::BID) {
@@ -301,7 +338,6 @@ bool Market::match(Order order) {
             } else {
                 this->apply_bid_level(order.price, order.size, 0, Action::ADD);
             }
-            this->trim_to_depth();
             return true;
         }
     }
@@ -324,7 +360,6 @@ bool Market::match(Order order) {
             if (level.size <= 0.0) {
                 this->erase_ask_level(static_cast<std::size_t>(idx));
             }
-            this->trim_to_depth();
             return true;
         }
         if (order.side == Side::BID) {
@@ -341,7 +376,6 @@ bool Market::match(Order order) {
             if (level.size <= 0.0) {
                 this->erase_bid_level(static_cast<std::size_t>(idx));
             }
-            this->trim_to_depth();
             return true;
         }
     }
@@ -358,7 +392,6 @@ bool Market::match(Order order) {
                     this->erase_ask_level(0);
                 }
             }
-            this->trim_to_depth();
             return true;
         }
         if (order.side == Side::BID) {
@@ -372,7 +405,6 @@ bool Market::match(Order order) {
                     this->erase_bid_level(0);
                 }
             }
-            this->trim_to_depth();
             return true;
         }
     }
@@ -408,10 +440,7 @@ void Market::reset_ladder() {
 
 void Market::load_snapshot(const SnapshotData& snapshot) {
     this->reset_ladder();
-    const std::size_t target_depth = std::min<std::size_t>(
-        kBookLevels,
-        this->depth > 0 ? static_cast<std::size_t>(this->depth) : 1u
-    );
+    const std::size_t target_depth = this->managed_depth;
 
     for (std::size_t i = 0; i < target_depth; ++i) {
         const double price = snapshot.bid_price[i];
@@ -438,8 +467,6 @@ void Market::load_snapshot(const SnapshotData& snapshot) {
             });
         }
     }
-
-    this->trim_to_depth();
 }
 
 void Market::handle(MarketByPriceEvent& mbp_event) {
@@ -448,7 +475,7 @@ void Market::handle(MarketByPriceEvent& mbp_event) {
     this->load_snapshot(mbp_event.get_snapshot_data());
     this->valid = this->snapshot_validation_enabled
         ? this->check_snapshot()
-        : (!this->ask_ladder.empty() && !this->bid_ladder.empty());
+        : this->has_required_depth();
 }
 
 void Market::handle(SnapshotEvent& mbp_event) {
@@ -457,13 +484,14 @@ void Market::handle(SnapshotEvent& mbp_event) {
     this->load_snapshot(mbp_event.get_snapshot_data());
     this->valid = this->snapshot_validation_enabled
         ? this->check_snapshot()
-        : (!this->ask_ladder.empty() && !this->bid_ladder.empty());
+        : this->has_required_depth();
 }
 
 void Market::handle(OrderEvent& mbo_event) {
     this->last_reception_timestamp = mbo_event.get_reception_timestamp();
     this->last_order_gateway_in_timestamp = mbo_event.get_last_market_timestamp().order_gateway_in_timestamp;
-    this->valid = this->match(mbo_event.get_order());
+    const bool matched = this->match(mbo_event.get_order());
+    this->valid = matched && this->has_required_depth();
 }
 
 void Market::handle(UpdateEvent& update_event) {
@@ -472,7 +500,7 @@ void Market::handle(UpdateEvent& update_event) {
     this->update(update_event.get_update().level, update_event.get_update().side, update_event.get_update().action);
     this->valid = this->snapshot_validation_enabled
         ? this->check_snapshot()
-        : (!this->ask_ladder.empty() && !this->bid_ladder.empty());
+        : this->has_required_depth();
 }
 
 void Market::handle(UpdateBatchEvent& update_batch_event) {
@@ -492,35 +520,24 @@ void Market::handle(UpdateBatchEvent& update_batch_event) {
         }
     }
 
-    this->trim_to_depth();
     this->valid = this->snapshot_validation_enabled
         ? this->check_snapshot()
-        : (!this->ask_ladder.empty() && !this->bid_ladder.empty());
-}
-
-void Market::trim_to_depth() {
-    const std::size_t configured_depth = std::min<std::size_t>(
-        kBookLevels,
-        this->depth > 0 ? static_cast<std::size_t>(this->depth) : 1u
-    );
-    const std::size_t common_depth = std::min<std::size_t>(
-        configured_depth,
-        std::min(this->ask_ladder.effective_depth(), this->bid_ladder.effective_depth())
-    );
-
-    this->bid_ladder.trim(common_depth);
-    this->ask_ladder.trim(common_depth);
+        : this->has_required_depth();
 }
 
 bool Market::check_snapshot() {
-    if (this->ask_ladder.empty() || this->bid_ladder.empty()) {
+    if (this->ask_ladder.effective_depth() < this->managed_depth
+        || this->bid_ladder.effective_depth() < this->managed_depth) {
         if (this->logger) {
             this->logger->log_error(
                 "Market",
                 fmt::format(
-                    "snapshot received @ {} by {} has empty side(s), setting to invalid",
+                    "snapshot received @ {} by {} has insufficient depth ask={} bid={} required={}, setting to invalid",
                     Timestamp::unix_to_string(this->get_last_order_gateway_in_timestamp()),
-                    this->name
+                    this->name,
+                    this->ask_ladder.effective_depth(),
+                    this->bid_ladder.effective_depth(),
+                    this->managed_depth
                 )
             );
         }

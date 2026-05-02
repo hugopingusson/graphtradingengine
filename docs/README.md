@@ -10,6 +10,7 @@ The engine is an event-based trading runtime:
 ## Reading Order
 
 For a first pass:
+0. `development/recent-changes.md` (latest behavior changes)
 1. `architecture/project-overview.md`
 2. `architecture/event-and-data-model.md`
 3. `architecture/graph-and-node-model.md`
